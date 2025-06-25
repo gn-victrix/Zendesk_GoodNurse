@@ -72,125 +72,18 @@
     </style>
 </head>
 <body>
-    <h1>Device Information Template</h1>
+    <h1>Diagnostic Data Reader</h1>
     
     <!-- Template container -->
     <div id="template-container"></div>
     
-    <!-- Add new device button -->
-    <button onclick="addNewDevice()">Add New Device</button>
+    <!-- Add load sample data button -->
     <button onclick="loadSampleData()">Load Sample Data</button>
-
-    <!-- HTML Template (hidden) -->
-    <template id="section-template">
-        <div class="section-card"> <!-- For each device displayed (each box)-->
-
-            <div class="field"> <!-- Each field in the template -->
-                <div class="field-content">
-                    <span class="label">App version:</span>
-                    <span class="value" data-field="App version">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'App version')">Copy</button>
-            </div>
-
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">Platform:</span>
-                    <span class="value" data-field="Platform">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'Platform')">Copy</button>
-            </div>
-
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">Device model:</span>
-                    <span class="value" data-field="Device model">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'Device model')">Copy</button>
-            </div>
-
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">OS:</span>
-                    <span class="value" data-field="OS">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'OS')">Copy</button>
-            </div>
-
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">System language:</span>
-                    <span class="value" data-field="System language">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'System language')">Copy</button>
-            </div>
-
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">Support ID:</span>
-                    <span class="value" data-field="Support ID">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'Support ID')">Copy</button>
-            </div>
-            
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">Device ID:</span>
-                    <span class="value" data-field="Device ID">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'Device ID')">Copy</button>
-            </div>
-
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">SQLite:</span>
-                    <span class="value" data-field="SQLite">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'SQLite')">Copy</button>
-            </div>
-            
-            <div class="field">
-                <div class="field-content">
-                    <span class="label">Timezone:</span>
-                    <span class="value" data-field="Timezone">-</span>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'Timezone')">Copy</button>
-            </div>
-
-            <div class="field">
-                <button class="copy-btn" onclick="copyAllDeviceInfo(this)" style="margin-left: 0; background-color: #6c757d;">Copy All Info</button>
-            </div>
-        </div>
-    </template>
-
+ 
     <script>
         // Sample data - dictionary/object format
-        const sampleDeviceData = [ // creating sample data
-            {
-                "App version": "6.5.17 (2968577.315336479)",
-                "Platform": "iOS 18.1.1",
-                "Device model": "iPhone 12",
-                "OS": "Version 18.1.1 (Build 22B91)",
-                "System language": "en",
-                "Support ID": "HL8BHT574Y",
-                "Device ID": "C47CB2BE-B37B-4D56-AD0E-614D4E8C1A2E",
-                "SQLite": "3.43.2",
-                "Timezone": "Central Standard Time (CST)"
-            },
-            {
-                "App version": "612345678923456789.876543112",
-                "Platform": "iOS 18.1.1",
-                "Device model": "iPhone 12",
-                "OS": "Version 18.1.1 (Build 22B91)",
-                "System language": "en",
-                "Support ID": "HL8BHT574Y",
-                "Device ID": "C47CB2BE-B37B-4D56-AD0E-614D4E8C1A2E",
-                "SQLite": "3.43.2",
-                "Timezone": "Central Standard Time (CST)"
-            }
-        ];
 
-        const sampleDeviceData2 = { 
+        const sampleDeviceData = { 
             "Device Info": { // creating sample data
                 "App version": "6.5.17 (2968577.315336479)",
                 "Platform": "iOS 18.1.1",
@@ -209,10 +102,21 @@
                 "Destination folder": "GoodNotes",
                 "Storage": "Local",
                 "Formats": "PDF"
+            },
+            "Settings": {
+                "iCloud enabled": "Yes",
+                "Search indexing enabled": "Yes",
+                "GoodNotes email address": "me.3rj8h74@goodnotes.email"
+            },
+            "Library": {
+                "Documents count": "58",
+            },
+            "Sync": {
+                "Last synced": "2024/12/10 16:37:42:315"
             }
         };
 
-        //////////////////////
+        //////////////////////////////////////////////////////////////////////////////////////
 
         // Main function to generate templates for nested data
         function generateNestedHTMLTemplates(nestedData) {
@@ -254,7 +158,7 @@
             
             // Add "Copy All Info" button
             templateHTML += `            <div class="field">
-                <button class="copy-btn" onclick="copyAll${sectionName.replace(/\s+/g, '')}Info(this)" style="margin-left: 0; background-color: #6c757d;">Copy All ${sectionName} Info</button>
+                <button class="copy-btn" onclick="copyAllSectionInfo(this)" style="margin-left: 0; background-color: #6c757d;">Copy Entire ${sectionName} Section</button>
             </div>
         </div>
     </template>`;
@@ -309,64 +213,16 @@
 
         // Load sample data
         function loadSampleData() {
-            //displayDevices(sampleDeviceData);
-            const templatesDict = generateNestedHTMLTemplates(sampleDeviceData2);
-            //renderTemplatesToDOM(templatesDict, 'template-container'); 
-            renderTemplatesToDOM(templatesDict, 'template-container', sampleDeviceData2); 
+            const templatesDict = generateNestedHTMLTemplates(sampleDeviceData);
+            renderTemplatesToDOM(templatesDict, 'template-container', sampleDeviceData); 
         }
 
-        
-
-        //////////////////////
-
-
-        // Function to render template with data
-        function renderDevice(deviceData) {
-            const template = document.getElementById('section-template');
-            const clone = template.content.cloneNode(true);
-            
-            // Fill in the template with dictionary values
-            Object.keys(deviceData).forEach(key => {
-                const element = clone.querySelector(`[data-field="${key}"]`);
-                if (element) {
-                    element.textContent = deviceData[key];
-                }
-            });
-            
-            return clone;
-        }
-
-        // Function to display all devices
-        function displayDevices(devices) {
-            const container = document.getElementById('template-container');
-            container.innerHTML = ''; // Clear existing content
-            
-            devices.forEach(device => {
-                const deviceElement = renderDevice(device);
-                container.appendChild(deviceElement);
-            });
-        }
-
-        
-
-        //////////// Add new device with user input ///////////////
-        //function addNewDevice() {
-        //    const deviceData = {
-        //        deviceId: prompt("Enter Device ID:") || "DEV-NEW",
-        //        supportId: prompt("Enter Support ID:") || "SUP-NEW", 
-        //        deviceName: prompt("Enter Device Name:") || "New Device",
-        //        status: prompt("Enter Status (Online/Offline):") || "Unknown",
-        //        lastUpdated: new Date().toLocaleString()
-        //    };
-            
-        //    displayDevices([...sampleDeviceData, deviceData]);
-        //}
-
+        /////////////////////////////////////////////////////////////////////////////////
 
         // Copy to clipboard function
         async function copyToClipboard(button, fieldName) {
             try {
-                const deviceCard = button.closest('.section-card');
+                const deviceCard = button.closest('[class$="-card"]');
                 const valueElement = deviceCard.querySelector(`[data-field="${fieldName}"]`);
                 const textToCopy = valueElement.textContent;
                 
@@ -389,16 +245,30 @@
             }
         }
 
-        // Copy all device information
-        async function copyAllDeviceInfo(button) {
+        // Generic copy all information function
+        async function copyAllSectionInfo(button) {
+            let allInfo = ''; // Declare outside try block for proper scope
+            
             try {
-                const deviceCard = button.closest('.section-card');
-                const fields = deviceCard.querySelectorAll('[data-field]');
+                // Find the card container - look for any element with class ending in "-card"
+                const sectionCard = button.closest('[class$="-card"]');
                 
-                let allInfo = 'Device Information:\n';
+                if (!sectionCard) {
+                    console.error('Could not find section card container');
+                    return;
+                }
+                
+                // Get the section name from the header
+                const sectionHeader = sectionCard.querySelector('.section-header');
+                const sectionName = sectionHeader ? sectionHeader.textContent : 'Section';
+                
+                const fields = sectionCard.querySelectorAll('[data-field]');
+                
+                allInfo = `${sectionName} Information:\n`;
                 fields.forEach(field => {
                     const fieldName = field.getAttribute('data-field');
                     const fieldValue = field.textContent;
+                    // Convert camelCase to Title Case
                     const label = fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                     allInfo += `${label}: ${fieldValue}\n`;
                 });
@@ -417,7 +287,10 @@
                 
             } catch (err) {
                 console.error('Failed to copy all text: ', err);
-                fallbackCopyTextToClipboard(allInfo, button);
+                // Now allInfo is accessible here
+                if (typeof fallbackCopyTextToClipboard === 'function' && allInfo) {
+                    fallbackCopyTextToClipboard(allInfo, button);
+                }
             }
         }
 
@@ -450,13 +323,12 @@
             } catch (err) {
                 console.error('Fallback: Oops, unable to copy', err);
             }
-            
             document.body.removeChild(textArea);
         }
 
-        // Load sample data on page load
+        // Load sample data on page load automatically
         window.onload = function() {
-            loadSampleData();
+            loadSampleData(); 
         };
     </script>
 </body>
