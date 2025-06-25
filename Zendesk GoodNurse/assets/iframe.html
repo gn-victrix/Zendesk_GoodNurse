@@ -1,21 +1,339 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <!--   See Using Zendesk Garden:
-    https://developer.zendesk.com/apps/docs/developer-guide/setup#using-zendesk-garden
-    https://garden.zendesk.com/css-components/bedrock/
-    https://garden.zendesk.com/css-components/utilities/typography/
-   -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Template Example</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Use the ZAFClient.init() method to create a Zendesk JavaScript API client-->
+    <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+    <script> 
+      var client = ZAFClient.init();
+      client.invoke('resize', { width: '100%', height: '700px' });
+    </script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        .field {
+            margin: 10px 0;
+        }
+        .label {
+            font-weight: bold;
+            color: #333;
+        }
+        .value {
+            color: #666;
+            margin-left: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .copy-btn {
+            background-color: #28a745;
+            padding: 5px 10px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .copy-btn:hover {
+            background-color: #218838;
+        }
+        .copy-btn.copied {
+            background-color: #17a2b8;
+        }
+        .field {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .field-content {
+            flex: 1;
+        }
+    </style>
 </head>
 <body>
-  <h2 class="u-semibold u-fs-xl">Hello, World!</h2>
-  <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
-  <script>
-    // Initialise Apps framework client. See also:
-    // https://developer.zendesk.com/apps/docs/developer-guide/getting_started
-    var client = ZAFClient.init();
-    client.invoke('resize', { width: '100%', height: '200px' });
-  </script>
+    <h1>Device Information Template</h1>
+    
+    <!-- Template container -->
+    <div id="template-container"></div>
+    
+    <!-- Add new device button -->
+    <button onclick="addNewDevice()">Add New Device</button>
+    <button onclick="loadSampleData()">Load Sample Data</button>
+
+    <!-- HTML Template (hidden) -->
+    <template id="section-template">
+        <div class="section-card"> <!-- For each device displayed (each box)-->
+            <div class="field"> <!-- Each field in the template -->
+                <div class="field-content">
+                    <span class="label">Device ID:</span>
+                    <span class="value" data-field="deviceId">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'deviceId')">Copy</button>
+            </div>
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">Support ID:</span>
+                    <span class="value" data-field="supportId">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'supportId')">Copy</button>
+            </div>
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">Device Name:</span>
+                    <span class="value" data-field="deviceName">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'deviceName')">Copy</button>
+            </div>
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">Status:</span>
+                    <span class="value" data-field="status">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'status')">Copy</button>
+            </div>
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">Last Updated:</span>
+                    <span class="value" data-field="lastUpdated">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'lastUpdated')">Copy</button>
+            </div>
+            <div class="field">
+                <button class="copy-btn" onclick="copyAllDeviceInfo(this)" style="margin-left: 0; background-color: #6c757d;">Copy All Info</button>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Sample data - dictionary/object format
+        const sampleDevices = [ // creating sample data
+            {
+                "App version": "6.5.17 (2968577.315336479)",
+                "Platform": "iOS 18.1.1",
+                "Device model": "iPhone 12",
+                "OS": "Version 18.1.1 (Build 22B91)",
+                "System language": "en",
+                "Support ID": "HL8BHT574Y",
+                "Device ID": "C47CB2BE-B37B-4D56-AD0E-614D4E8C1A2E",
+                "SQLite": "3.43.2",
+                "Timezone": "Central Standard Time (CST)"
+            },
+            {
+                deviceId: "DEV-002", 
+                supportId: "SUP-12346",
+                deviceName: "Backup Server",
+                status: "Offline",
+                lastUpdated: "2025-06-24 15:45:00"
+            }
+        ];
+
+        // Function to render template with data
+        function renderDevice(deviceData) {
+            const template = document.getElementById('section-template');
+            const clone = template.content.cloneNode(true);
+            
+            // Fill in the template with dictionary values
+            Object.keys(deviceData).forEach(key => {
+                const element = clone.querySelector(`[data-field="${key}"]`);
+                if (element) {
+                    element.textContent = deviceData[key];
+                }
+            });
+            
+            return clone;
+        }
+
+        // Function to display all devices
+        function displayDevices(devices) {
+            const container = document.getElementById('template-container');
+            container.innerHTML = ''; // Clear existing content
+            
+            devices.forEach(device => {
+                const deviceElement = renderDevice(device);
+                container.appendChild(deviceElement);
+            });
+        }
+
+        // Load sample data
+        function loadSampleData() {
+            displayDevices(sampleDevices);
+        }
+
+        //////////// Add new device with user input ///////////////
+        //function addNewDevice() {
+        //    const deviceData = {
+        //        deviceId: prompt("Enter Device ID:") || "DEV-NEW",
+        //        supportId: prompt("Enter Support ID:") || "SUP-NEW", 
+        //        deviceName: prompt("Enter Device Name:") || "New Device",
+        //        status: prompt("Enter Status (Online/Offline):") || "Unknown",
+        //        lastUpdated: new Date().toLocaleString()
+        //    };
+            
+        //    displayDevices([...sampleDevices, deviceData]);
+        //}
+
+        // Alternative: String template approach
+        function createDeviceHTML(deviceData) {
+            return `
+                <div class="section-card">
+                    <div class="field">
+                        <div class="field-content">
+                            <span class="label">Device ID:</span>
+                            <span class="value">${deviceData.deviceId}</span>
+                        </div>
+                        <button class="copy-btn" onclick="copyToClipboard(this, 'deviceId')">Copy</button>
+                    </div>
+                    <div class="field">
+                        <div class="field-content">
+                            <span class="label">Support ID:</span>
+                            <span class="value">${deviceData.supportId}</span>
+                        </div>
+                        <button class="copy-btn" onclick="copyToClipboard(this, 'supportId')">Copy</button>
+                    </div>
+                    <div class="field">
+                        <div class="field-content">
+                            <span class="label">Device Name:</span>
+                            <span class="value">${deviceData.deviceName}</span>
+                        </div>
+                        <button class="copy-btn" onclick="copyToClipboard(this, 'deviceName')">Copy</button>
+                    </div>
+                    <div class="field">
+                        <div class="field-content">
+                            <span class="label">Status:</span>
+                            <span class="value">${deviceData.status}</span>
+                        </div>
+                        <button class="copy-btn" onclick="copyToClipboard(this, 'status')">Copy</button>
+                    </div>
+                    <div class="field">
+                        <div class="field-content">
+                            <span class="label">Last Updated:</span>
+                            <span class="value">${deviceData.lastUpdated}</span>
+                        </div>
+                        <button class="copy-btn" onclick="copyToClipboard(this, 'lastUpdated')">Copy</button>
+                    </div>
+                    <div class="field">
+                        <button class="copy-btn" onclick="copyAllDeviceInfo(this)" style="margin-left: 0; background-color: #6c757d;">Copy All Info</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Copy to clipboard function
+        async function copyToClipboard(button, fieldName) {
+            try {
+                const deviceCard = button.closest('.section-card');
+                const valueElement = deviceCard.querySelector(`[data-field="${fieldName}"]`);
+                const textToCopy = valueElement.textContent;
+                
+                await navigator.clipboard.writeText(textToCopy);
+                
+                // Visual feedback
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+                
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                // Fallback for older browsers
+                fallbackCopyTextToClipboard(valueElement.textContent, button);
+            }
+        }
+
+        // Copy all device information
+        async function copyAllDeviceInfo(button) {
+            try {
+                const deviceCard = button.closest('.section-card');
+                const fields = deviceCard.querySelectorAll('[data-field]');
+                
+                let allInfo = 'Device Information:\n';
+                fields.forEach(field => {
+                    const fieldName = field.getAttribute('data-field');
+                    const fieldValue = field.textContent;
+                    const label = fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    allInfo += `${label}: ${fieldValue}\n`;
+                });
+                
+                await navigator.clipboard.writeText(allInfo);
+                
+                // Visual feedback
+                const originalText = button.textContent;
+                button.textContent = 'All Copied!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+                
+            } catch (err) {
+                console.error('Failed to copy all text: ', err);
+                fallbackCopyTextToClipboard(allInfo, button);
+            }
+        }
+
+        // Fallback function for older browsers
+        function fallbackCopyTextToClipboard(text, button) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Avoid scrolling to bottom
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    const originalText = button.textContent;
+                    button.textContent = 'Copied!';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
+        // Load sample data on page load
+        window.onload = function() {
+            loadSampleData();
+        };
+    </script>
 </body>
 </html>
