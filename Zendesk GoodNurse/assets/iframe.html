@@ -84,41 +84,79 @@
     <!-- HTML Template (hidden) -->
     <template id="section-template">
         <div class="section-card"> <!-- For each device displayed (each box)-->
+
             <div class="field"> <!-- Each field in the template -->
                 <div class="field-content">
-                    <span class="label">Device ID:</span>
-                    <span class="value" data-field="deviceId">-</span>
+                    <span class="label">App version:</span>
+                    <span class="value" data-field="App version">-</span>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'deviceId')">Copy</button>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'App version')">Copy</button>
             </div>
+
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">Platform:</span>
+                    <span class="value" data-field="Platform">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'Platform')">Copy</button>
+            </div>
+
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">Device model:</span>
+                    <span class="value" data-field="Device model">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'Device model')">Copy</button>
+            </div>
+
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">OS:</span>
+                    <span class="value" data-field="OS">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'OS')">Copy</button>
+            </div>
+
+            <div class="field">
+                <div class="field-content">
+                    <span class="label">System language:</span>
+                    <span class="value" data-field="System language">-</span>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'System language')">Copy</button>
+            </div>
+
             <div class="field">
                 <div class="field-content">
                     <span class="label">Support ID:</span>
-                    <span class="value" data-field="supportId">-</span>
+                    <span class="value" data-field="Support ID">-</span>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'supportId')">Copy</button>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'Support ID')">Copy</button>
             </div>
+            
             <div class="field">
                 <div class="field-content">
-                    <span class="label">Device Name:</span>
-                    <span class="value" data-field="deviceName">-</span>
+                    <span class="label">Device ID:</span>
+                    <span class="value" data-field="Device ID">-</span>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'deviceName')">Copy</button>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'Device ID')">Copy</button>
             </div>
+
             <div class="field">
                 <div class="field-content">
-                    <span class="label">Status:</span>
-                    <span class="value" data-field="status">-</span>
+                    <span class="label">SQLite:</span>
+                    <span class="value" data-field="SQLite">-</span>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'status')">Copy</button>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'SQLite')">Copy</button>
             </div>
+            
             <div class="field">
                 <div class="field-content">
-                    <span class="label">Last Updated:</span>
-                    <span class="value" data-field="lastUpdated">-</span>
+                    <span class="label">Timezone:</span>
+                    <span class="value" data-field="Timezone">-</span>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, 'lastUpdated')">Copy</button>
+                <button class="copy-btn" onclick="copyToClipboard(this, 'Timezone')">Copy</button>
             </div>
+
             <div class="field">
                 <button class="copy-btn" onclick="copyAllDeviceInfo(this)" style="margin-left: 0; background-color: #6c757d;">Copy All Info</button>
             </div>
@@ -127,7 +165,7 @@
 
     <script>
         // Sample data - dictionary/object format
-        const sampleDevices = [ // creating sample data
+        const sampleDeviceData = [ // creating sample data
             {
                 "App version": "6.5.17 (2968577.315336479)",
                 "Platform": "iOS 18.1.1",
@@ -140,11 +178,15 @@
                 "Timezone": "Central Standard Time (CST)"
             },
             {
-                deviceId: "DEV-002", 
-                supportId: "SUP-12346",
-                deviceName: "Backup Server",
-                status: "Offline",
-                lastUpdated: "2025-06-24 15:45:00"
+                "App version": "612345678923456789.876543112",
+                "Platform": "iOS 18.1.1",
+                "Device model": "iPhone 12",
+                "OS": "Version 18.1.1 (Build 22B91)",
+                "System language": "en",
+                "Support ID": "HL8BHT574Y",
+                "Device ID": "C47CB2BE-B37B-4D56-AD0E-614D4E8C1A2E",
+                "SQLite": "3.43.2",
+                "Timezone": "Central Standard Time (CST)"
             }
         ];
 
@@ -177,7 +219,7 @@
 
         // Load sample data
         function loadSampleData() {
-            displayDevices(sampleDevices);
+            displayDevices(sampleDeviceData);
         }
 
         //////////// Add new device with user input ///////////////
@@ -190,54 +232,9 @@
         //        lastUpdated: new Date().toLocaleString()
         //    };
             
-        //    displayDevices([...sampleDevices, deviceData]);
+        //    displayDevices([...sampleDeviceData, deviceData]);
         //}
 
-        // Alternative: String template approach
-        function createDeviceHTML(deviceData) {
-            return `
-                <div class="section-card">
-                    <div class="field">
-                        <div class="field-content">
-                            <span class="label">Device ID:</span>
-                            <span class="value">${deviceData.deviceId}</span>
-                        </div>
-                        <button class="copy-btn" onclick="copyToClipboard(this, 'deviceId')">Copy</button>
-                    </div>
-                    <div class="field">
-                        <div class="field-content">
-                            <span class="label">Support ID:</span>
-                            <span class="value">${deviceData.supportId}</span>
-                        </div>
-                        <button class="copy-btn" onclick="copyToClipboard(this, 'supportId')">Copy</button>
-                    </div>
-                    <div class="field">
-                        <div class="field-content">
-                            <span class="label">Device Name:</span>
-                            <span class="value">${deviceData.deviceName}</span>
-                        </div>
-                        <button class="copy-btn" onclick="copyToClipboard(this, 'deviceName')">Copy</button>
-                    </div>
-                    <div class="field">
-                        <div class="field-content">
-                            <span class="label">Status:</span>
-                            <span class="value">${deviceData.status}</span>
-                        </div>
-                        <button class="copy-btn" onclick="copyToClipboard(this, 'status')">Copy</button>
-                    </div>
-                    <div class="field">
-                        <div class="field-content">
-                            <span class="label">Last Updated:</span>
-                            <span class="value">${deviceData.lastUpdated}</span>
-                        </div>
-                        <button class="copy-btn" onclick="copyToClipboard(this, 'lastUpdated')">Copy</button>
-                    </div>
-                    <div class="field">
-                        <button class="copy-btn" onclick="copyAllDeviceInfo(this)" style="margin-left: 0; background-color: #6c757d;">Copy All Info</button>
-                    </div>
-                </div>
-            `;
-        }
 
         // Copy to clipboard function
         async function copyToClipboard(button, fieldName) {
