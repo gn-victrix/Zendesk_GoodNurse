@@ -360,7 +360,9 @@
             console.log('attachment URLs found:', urls);
             if (urls.length > 0) {
                 downloadAndReadDiagnosticData(urls[0]).then(result => {
-                parseDiagnosticData(result);
+                const finalData =  parseDiagnosticData(result); // get dataDict
+                const templatesDict = generateNestedHTMLTemplates(finalData); // create template
+                renderTemplatesToDOM(templatesDict, 'template-container', finalData) // display info
                 });
             }
             }).catch(err => console.error('Error parsing comments:', err));
@@ -479,6 +481,10 @@
             return dataDict;
         }
 
+        function readJSONfile(fileNameString, content, dataDict){
+            //dataDict[fileNameString] = {};
+              // Function to recursively extract all key-value pairs
+        }
 
     </script>
 
