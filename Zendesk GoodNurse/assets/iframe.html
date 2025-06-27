@@ -6,6 +6,7 @@
     <title>HTML Template Example</title>
     <!-- Include JSZip library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <!-- Use the ZAFClient.init() method to create a Zendesk JavaScript API client-->
     <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
     <script> 
@@ -85,7 +86,12 @@
     <button id="loadZip">Load Zip Attachments</button>
     <div id="zipContents"></div>
     
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+        console.error('Unhandled Error:', message, 'at', lineno + ':' + colno);
+        };
 
+    </script>
     <script>
         // Sample data - dictionary/object format
 
@@ -339,31 +345,95 @@
     </script>
 <!-------------------------------------------------------------------------------------------------------->
     <script>
-        client.on('app.registered', function() {
-            console.log('App registered!');
-            document.getElementById('loadZip').addEventListener('click', loadTicketComments);
+
+        const targetFiles = [
+            "device_information.txt",
+            "settings.json",
+            "paywall_diagnostics.txt"
+        ];
+
+        client.on('app.registered', function () {
+        console.log('App registered!');
+        document.getElementById('loadZip').addEventListener('click', function () {
+            getDiagnosticDataURLs(client).then(urls => {
+            console.log('attachment URLs found:', urls);
+            if (urls.length > 0) {
+                downloadAndParseDiagnosticData(urls[0]);
+            }
+            }).catch(err => console.error('Error parsing comments:', err));
+        });
         });
 
-        async function loadTicketComments(){
-            try{
-                // Fetch ticket comments
-                const ticketData = await client.get('ticket.comments');
-                console.log('Ticket comments:', ticketData);
 
-                // Extract comments
-                const comments = ticketData['ticket.comments'].map(comment => comment.value);
-                const commentText = comments.join('\n\n');
-
-                // Display the result
-                document.getElementById('zipContents').textContent = commentText;
-
-            } catch {
-                console.error('Error loading ticket comments');
-                document.getElementById('zipContents').textContent = "Error loading ticket comments";
-
-            }
+        function getDiagnosticDataURLs(client) {
+            return client.get('ticket.comments').then(function (data) {
+                const urls = [];
+                console.log(data['ticket.comments'].length,"comments found");
+                for (const comment of data['ticket.comments']) {
+                    console.log(Object.keys(comment));
+                    console.log(Object.values(comment));
+                    const attachments = comment['nonImageAttachments'] || [];
+                    for (const attachment of attachments) {
+                        console.log('Found attachment:', attachment.filename, attachment.contentType);
+                        if (
+                        attachment.contentType === 'application/zip' ||
+                        attachment.filename.toLowerCase().endsWith('.zip')
+                        ) {
+                        urls.push(attachment.contentUrl);
+                        }
+                    }
+                }
+                return urls;
+            });
         }
+
+        function downloadBinary(url) {
+            return new Promise((resolve, reject) => {
+            const req = new XMLHttpRequest();
+            req.open('GET', url, true);
+            req.responseType = "arraybuffer";
+            req.onload = function () {
+                resolve(new Blob([req.response]));
+            };
+            req.onerror = function (error) {
+                reject(error);
+            };
+            req.send(null);
+            });
+        }
+
+        function downloadAndParseDiagnosticData(url) {
+            return downloadBinary(url).then(blob => {
+            return parseZipData(blob).then(result => {
+                console.log("Parsed zip data:", result);
+                return { blob, result };
+            });
+            });
+        }
+
+        function parseZipData(blob) {
+            return JSZip.loadAsync(blob).then(zip => {
+            const result = {};
+            const filePromises = [];
+
+            targetFiles.forEach(filename => {
+                const file = zip.file(filename);
+                if (file) {
+                const promise = file.async("text").then(content => {
+                    result[filename] = content;
+                });
+                filePromises.push(promise);
+                }
+            });
+
+            return Promise.all(filePromises).then(() => result);
+            });
+        }
+
     </script>
+
+
+
     
 </body>
 </html>
