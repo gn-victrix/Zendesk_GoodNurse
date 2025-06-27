@@ -80,7 +80,7 @@
     <div id="template-container"></div>
     
     <!-- Add load sample data button -->
-    <button onclick="loadSampleData()">Load Sample Data</button>
+    <!-- <button onclick="loadSampleData()">Load Sample Data</button> -->
 
     <!-- Add Load ZIP button-->
     <button id="loadZip">Load Zip Attachments</button>
@@ -92,6 +92,7 @@
         };
 
     </script>
+
     <script>
         // Sample data - dictionary/object format
 
@@ -339,9 +340,9 @@
         }
 
         // Load sample data on page load automatically
-        window.onload = function() {
-            loadSampleData(); 
-        };
+        //window.onload = function() {
+        //    loadSampleData(); 
+        //};
     </script>
 <!-------------------------------------------------------------------------------------------------------->
     <script>
@@ -349,7 +350,8 @@
         const targetFiles = [
             "device_information.txt",
             "settings.json",
-            "paywall_diagnostics.txt"
+            "paywall_diagnostics.txt",
+            "writing_aids_info.txt"
         ];
 
 
@@ -360,7 +362,9 @@
             console.log('attachment URLs found:', urls);
             if (urls.length > 0) {
                 downloadAndReadDiagnosticData(urls[0]).then(result => {
-                parseDiagnosticData(result);
+                const finalData =  parseDiagnosticData(result); // get dataDict
+                const templatesDict = generateNestedHTMLTemplates(finalData); // create template
+                renderTemplatesToDOM(templatesDict, 'template-container', finalData) // display info
                 });
             }
             }).catch(err => console.error('Error parsing comments:', err));
@@ -445,10 +449,12 @@
             if (fileNameString.endsWith(".txt")){
                 console.log("Text file")
                 // parse txt file
-                readTXTFile(fileNameString, content, dataDict)
+                readTXTFile(fileNameString, content, dataDict);
 
             } else if (String(filename).endsWith(".json")) {
                 console.log("JSON file")
+                // parse JSON file 
+                readJSONFile(fileNameString, content, dataDict);
             }
             });
             console.log("Data dict:", dataDict);
@@ -479,7 +485,41 @@
             return dataDict;
         }
 
-
+        function readJSONFile(fileNameString, content, dataDict){
+            const jsonObj = JSON.parse(content); // string into JSON obj
+            dataDict[fileNameString] = {};
+             // Function to recursively extract all key-value pairs
+            function extractAllKeys(obj, prefix = '') {
+                for (const [key, value] of Object.entries(obj)) {
+                    //const fullKey = prefix ? `${prefix}.${key}` : key;
+                    
+                    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+                        // If it's a nested object, recurse
+                        extractAllKeys(value, key);
+                    } else {
+                        // Handle the value and add to dictionary
+                        let processedValue;
+                        
+                        if (value === true) {
+                            processedValue = "Yes";
+                        } else if (value === false) {
+                            processedValue = "No";
+                        } else if (value === null || value === undefined) {
+                            processedValue = "None";
+                        } else if (value === "gdrive") {
+                            processedValue = "Google Drive";
+                        } else {
+                            processedValue = value;
+                        }
+                        
+                        dataDict[fileNameString][key] = processedValue;
+                    }
+                }
+            }
+            // Extract all keys from the parsed JSON
+            extractAllKeys(jsonObj);
+            return dataDict;
+        }
     </script>
 
 
