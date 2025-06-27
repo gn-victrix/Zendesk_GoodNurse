@@ -352,17 +352,21 @@
             "paywall_diagnostics.txt"
         ];
 
+
         client.on('app.registered', function () {
         console.log('App registered!');
         document.getElementById('loadZip').addEventListener('click', function () {
             getDiagnosticDataURLs(client).then(urls => {
             console.log('attachment URLs found:', urls);
             if (urls.length > 0) {
-                downloadAndParseDiagnosticData(urls[0]);
+                downloadAndReadDiagnosticData(urls[0]).then(result => {
+                parseDiagnosticData(result);
+                });
             }
             }).catch(err => console.error('Error parsing comments:', err));
         });
         });
+
 
 
         function getDiagnosticDataURLs(client) {
@@ -402,33 +406,79 @@
             });
         }
 
-        function downloadAndParseDiagnosticData(url) {
-            return downloadBinary(url).then(blob => {
-            return parseZipData(blob).then(result => {
-                console.log("Parsed zip data:", result);
-                return { blob, result };
-            });
-            });
-        }
-
-        function parseZipData(blob) {
+        function getZipData(blob) {
             return JSZip.loadAsync(blob).then(zip => {
-            const result = {};
+            const result = {}; // dict to be returned
             const filePromises = [];
-
             targetFiles.forEach(filename => {
                 const file = zip.file(filename);
+                const fileNameString = String(filename);
                 if (file) {
                 const promise = file.async("text").then(content => {
-                    result[filename] = content;
+                    result[fileNameString] = content;
                 });
                 filePromises.push(promise);
                 }
             });
-
             return Promise.all(filePromises).then(() => result);
             });
         }
+
+        function downloadAndReadDiagnosticData(url) {
+            // download ZIP as blob
+            return downloadBinary(url).then(blob => {
+            // Get dict of contents of .txt and .json files
+            return getZipData(blob).then(result => {
+                console.log("Desired Zip data:", result);
+                //return { blob, result };
+                return result;
+            });
+            });
+        }
+        
+        function parseDiagnosticData(data) {
+            const dataDict = {} // intialise empty dict
+            Object.entries(data).forEach(([filename, content]) => {
+            const fileNameString = String(filename);
+            console.log("Filename:", fileNameString, typeof(fileNameString));
+            //console.log("Content:", typeof(content));
+            if (fileNameString.endsWith(".txt")){
+                console.log("Text file")
+                // parse txt file
+                readTXTFile(fileNameString, content, dataDict)
+
+            } else if (String(filename).endsWith(".json")) {
+                console.log("JSON file")
+            }
+            });
+            console.log("Data dict:", dataDict);
+            return dataDict;
+        }
+
+        function readTXTFile(fileNameString, content, dataDict) {
+            dataDict[fileNameString] = {};
+            const lines = content.split('\n');
+            for (const line of lines) { // loop through each line in .txt
+                const [rawKey, ...rest] = line.split(':'); // get key and value (either side of ":")
+                if (!rawKey || rest.length === 0) continue; // Skip if no key or value
+                const key = rawKey.trim(); // get rid of white space
+                let value = rest.join(':').trim();
+                if (!key) continue; // Skip empty keys
+                // Check for null/invalid values
+                if (
+                    value.toLowerCase() === "null" ||
+                    value.toLowerCase() === "undefined" ||
+                    value === ""
+                ) {
+                    value = "None";
+                    console.warn(`⚠️ Setting invalid value for key "${key}" to "None"`);
+                }
+                // Populate the dictionary directly with the original key and value
+                dataDict[fileNameString][key] = value;
+            }
+            return dataDict;
+        }
+
 
     </script>
 
