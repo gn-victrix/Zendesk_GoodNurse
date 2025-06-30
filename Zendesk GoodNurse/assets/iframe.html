@@ -153,7 +153,17 @@
             
             let templateHTML = `<template id="${templateId}">
         <div class="${cardClass}">
-            <div class="section-header">${sectionName}</div>
+            <hr style="margin: 1em 0; border: none; border-top: 1px solid #ccc;">
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5em;">
+  <div class="section-header" style="font-size: 1.25em; font-weight: bold;">
+    ${sectionName}
+  </div>
+  <button class="copy-btn" onclick="copyAllSectionInfo(this)" style="background-color: #6c757d;">
+    Copy ${sectionName} Section
+  </button>
+</div>
+
 `;
             
             // Generate field HTML for each key in the section data
@@ -169,12 +179,6 @@
 `;
             });
             
-            // Add "Copy All Info" button
-            templateHTML += `            <div class="field">
-                <button class="copy-btn" onclick="copyAllSectionInfo(this)" style="margin-left: 0; background-color: #6c757d;">Copy ${sectionName} Section</button>
-            </div>
-        </div>
-    </template>`;
             
             return {
                 html: templateHTML,
@@ -347,12 +351,18 @@
 <!-------------------------------------------------------------------------------------------------------->
     <script>
 
-        const targetFiles = [
+        const targetFiles2 = [
             "device_information.txt",
             "settings.json",
             "paywall_diagnostics.txt",
             "writing_aids_info.txt"
         ];
+        const targetFiles = { // change to a dict so I can map display names to file names
+            "device_information.txt": "Device",
+            "settings.json": "Settings",
+            "paywall_diagnostics.txt": "Library",
+            "writing_aids_info.txt": "Writing Aids"
+        }
 
 
         client.on('app.registered', function () {
@@ -362,7 +372,7 @@
             console.log('attachment URLs found:', urls);
             if (urls.length > 0) {
                 downloadAndReadDiagnosticData(urls[0]).then(result => {
-                const finalData =  parseDiagnosticData(result); // get dataDict
+                const finalData =  parseDiagnosticData(result,targetFiles); // get dataDict
                 const templatesDict = generateNestedHTMLTemplates(finalData); // create template
                 renderTemplatesToDOM(templatesDict, 'template-container', finalData) // display info
                 });
@@ -410,11 +420,11 @@
             });
         }
 
-        function getZipData(blob) {
+        function getZipData2(blob) { // original
             return JSZip.loadAsync(blob).then(zip => {
             const result = {}; // dict to be returned
             const filePromises = [];
-            targetFiles.forEach(filename => {
+            targetFiles2.forEach(filename => {
                 const file = zip.file(filename);
                 const fileNameString = String(filename);
                 if (file) {
@@ -428,11 +438,32 @@
             });
         }
 
+        function getZipData(blob) {
+            return JSZip.loadAsync(blob).then(zip => {
+                const result = {}; // dict to be returned
+                const filePromises = [];
+
+                for (const [fileName, section] of Object.entries(targetFiles)) {
+                    const file = zip.file(fileName);
+                    const fileNameString = String(fileName);
+
+                    if (file) {
+                        const promise = file.async("text").then(content => {
+                            result[fileNameString] = content;
+                        });
+                        filePromises.push(promise);
+                    }
+                }
+
+                return Promise.all(filePromises).then(() => result);
+            });
+        }
+
         function downloadAndReadDiagnosticData(url) {
             // download ZIP as blob
             return downloadBinary(url).then(blob => {
             // Get dict of contents of .txt and .json files
-            return getZipData(blob).then(result => {
+            return getZipData2(blob).then(result => {
                 console.log("Desired Zip data:", result);
                 //return { blob, result };
                 return result;
@@ -440,29 +471,47 @@
             });
         }
         
-        function parseDiagnosticData(data) {
+        function parseDiagnosticData(data, targetFiles) {
             const dataDict = {} // intialise empty dict
             Object.entries(data).forEach(([filename, content]) => {
             const fileNameString = String(filename);
             console.log("Filename:", fileNameString, typeof(fileNameString));
             //console.log("Content:", typeof(content));
-            if (fileNameString.endsWith(".txt")){
+            if (fileNameString.endsWith(".txt")) {
                 console.log("Text file")
                 // parse txt file
-                readTXTFile(fileNameString, content, dataDict);
-
+                readTXTFile(fileNameString, content, dataDict,targetFiles);
             } else if (String(filename).endsWith(".json")) {
                 console.log("JSON file")
                 // parse JSON file 
-                readJSONFile(fileNameString, content, dataDict);
+                readSettingsFile(fileNameString, content, dataDict);
             }
             });
             console.log("Data dict:", dataDict);
             return dataDict;
         }
 
-        function readTXTFile(fileNameString, content, dataDict) {
-            dataDict[fileNameString] = {};
+        //const targetInfoDevice = ["App version", "Platform", "Device model","OS","System language", "Support ID","Device ID", "SQLite","Timezone"]
+        //const targetInfoPaywall = ["Is free user", "Used notebooks", "Raw library count", "Shared count", "Trash count"];
+
+        function getTargetInfo(sectionName){ // using the section, return a list of targetInfo
+            if (sectionName === "Device"){
+                return ["App version", "Platform", "Device model","OS","System language", "Support ID","Device ID", "SQLite","Timezone"]
+            } else if (sectionName === "Settings"){
+                return ["goodNotesEmailAddress"]
+            } else if (sectionName === "Library"){
+                return ["Is free user", "Used notebooks", "Raw library count", "Shared count", "Trash count"]
+            } else if (sectionName === "Writing Aids"){
+                return ["Spellcheck algorithm version","HWR InHouse recognition model version","HWR CJK model version","HWR segmentation model version","HWR Math recognition model version"]
+            }
+        }
+
+        function readTXTFile(fileNameString, content, dataDict,targetFiles){
+            // get section name
+            const sectionName = targetFiles[fileNameString]; // get the section name based on the file name key
+            dataDict[sectionName] = {};
+            const targetInfo = getTargetInfo(sectionName);
+
             const lines = content.split('\n');
             for (const line of lines) { // loop through each line in .txt
                 const [rawKey, ...rest] = line.split(':'); // get key and value (either side of ":")
@@ -470,6 +519,7 @@
                 const key = rawKey.trim(); // get rid of white space
                 let value = rest.join(':').trim();
                 if (!key) continue; // Skip empty keys
+                if (!targetInfo.includes(key)) continue; // Skip if info in not in targetInfo
                 // Check for null/invalid values
                 if (
                     value.toLowerCase() === "null" ||
@@ -480,46 +530,58 @@
                     console.warn(`⚠️ Setting invalid value for key "${key}" to "None"`);
                 }
                 // Populate the dictionary directly with the original key and value
-                dataDict[fileNameString][key] = value;
+                dataDict[sectionName][key] = value;
             }
             return dataDict;
         }
 
-        function readJSONFile(fileNameString, content, dataDict){
-            const jsonObj = JSON.parse(content); // string into JSON obj
-            dataDict[fileNameString] = {};
-             // Function to recursively extract all key-value pairs
-            function extractAllKeys(obj, prefix = '') {
+
+        function readSettingsFile(fileNameString, content, dataDict) {
+            const jsonObj = JSON.parse(content);
+
+            const targetInfoSettingsJSON = {
+                "Settings": {
+                    "goodNotesEmailAddress": "Goodnotes Email Address",
+                    "searchIndexing": "Search indexing enabled"
+                },
+                "Cloud Sync": {
+                    "iCloudEnabled": "iCloud enabled"
+                },
+                "Auto Backup": {
+                    "isEnabled": "Auto Backup enabled",
+                    "lastBackup": "Last Backup",
+                    "storage": "Storage",
+                    "isWifiOnly": "Wifi only",
+                    "destinationFolderName": "Destination folder"
+                }
+            };
+            function extractAllKeys(obj) {
                 for (const [key, value] of Object.entries(obj)) {
-                    //const fullKey = prefix ? `${prefix}.${key}` : key;
-                    
                     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-                        // If it's a nested object, recurse
-                        extractAllKeys(value, key);
+                        extractAllKeys(value); // recurse
                     } else {
-                        // Handle the value and add to dictionary
-                        let processedValue;
+                        let processedValue = (value === null || value === undefined) ? "None" : value;
                         
-                        if (value === true) {
-                            processedValue = "Yes";
-                        } else if (value === false) {
-                            processedValue = "No";
-                        } else if (value === null || value === undefined) {
-                            processedValue = "None";
-                        } else if (value === "gdrive") {
-                            processedValue = "Google Drive";
-                        } else {
-                            processedValue = value;
+
+                        for (const [section, targetInfo] of Object.entries(targetInfoSettingsJSON)) {
+                            if (key in targetInfo) {
+                                const label = targetInfo[key];
+
+                                // Ensure the section exists in dataDict
+                                if (!(section in dataDict)) {
+                                    dataDict[section] = {};
+                                }
+
+                                dataDict[section][label] = processedValue;
+                            }
                         }
-                        
-                        dataDict[fileNameString][key] = processedValue;
                     }
                 }
             }
-            // Extract all keys from the parsed JSON
             extractAllKeys(jsonObj);
             return dataDict;
         }
+
     </script>
 
 
