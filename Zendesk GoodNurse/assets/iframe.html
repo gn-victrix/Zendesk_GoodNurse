@@ -350,21 +350,6 @@
     </script>
 <!-------------------------------------------------------------------------------------------------------->
     <script>
-
-        const targetFiles2 = [
-            "device_information.txt",
-            "settings.json",
-            "paywall_diagnostics.txt",
-            "writing_aids_info.txt"
-        ];
-        const targetFiles = { // change to a dict so I can map display names to file names
-            "device_information.txt": "Device",
-            "settings.json": "Settings",
-            "paywall_diagnostics.txt": "Library",
-            "writing_aids_info.txt": "Writing Aids"
-        }
-
-
         client.on('app.registered', function () {
         console.log('App registered!');
         document.getElementById('loadZip').addEventListener('click', function () {
@@ -380,8 +365,6 @@
             }).catch(err => console.error('Error parsing comments:', err));
         });
         });
-
-
 
         function getDiagnosticDataURLs(client) {
             return client.get('ticket.comments').then(function (data) {
@@ -420,33 +403,13 @@
             });
         }
 
-        function getZipData2(blob) { // original
-            return JSZip.loadAsync(blob).then(zip => {
-            const result = {}; // dict to be returned
-            const filePromises = [];
-            targetFiles2.forEach(filename => {
-                const file = zip.file(filename);
-                const fileNameString = String(filename);
-                if (file) {
-                const promise = file.async("text").then(content => {
-                    result[fileNameString] = content;
-                });
-                filePromises.push(promise);
-                }
-            });
-            return Promise.all(filePromises).then(() => result);
-            });
-        }
-
         function getZipData(blob) {
             return JSZip.loadAsync(blob).then(zip => {
                 const result = {}; // dict to be returned
                 const filePromises = [];
-
                 for (const [fileName, section] of Object.entries(targetFiles)) {
                     const file = zip.file(fileName);
                     const fileNameString = String(fileName);
-
                     if (file) {
                         const promise = file.async("text").then(content => {
                             result[fileNameString] = content;
@@ -454,7 +417,6 @@
                         filePromises.push(promise);
                     }
                 }
-
                 return Promise.all(filePromises).then(() => result);
             });
         }
@@ -463,7 +425,7 @@
             // download ZIP as blob
             return downloadBinary(url).then(blob => {
             // Get dict of contents of .txt and .json files
-            return getZipData2(blob).then(result => {
+            return getZipData(blob).then(result => {
                 console.log("Desired Zip data:", result);
                 //return { blob, result };
                 return result;
@@ -471,28 +433,38 @@
             });
         }
         
+        const targetFiles = { // change to a dict so I can map display names to file names
+            "device_information.txt": "Device",
+            "settings.json": "Settings",
+            "paywall_diagnostics.txt": "Library",
+            "writing_aids_info.txt": "Writing Aids",
+            "logs.txt": "Logs"
+        }
+
         function parseDiagnosticData(data, targetFiles) {
             const dataDict = {} // intialise empty dict
             Object.entries(data).forEach(([filename, content]) => {
             const fileNameString = String(filename);
             console.log("Filename:", fileNameString, typeof(fileNameString));
             //console.log("Content:", typeof(content));
-            if (fileNameString.endsWith(".txt")) {
-                console.log("Text file")
+            if (fileNameString.includes("logs.txt")){
+                // get last sync and last backup
+                console.log("Getting logs");
+                getLastBackupTime(content, dataDict);
+                updateLastSyncTime(content, dataDict);
+            } else if (fileNameString.endsWith(".txt")) {
+                console.log("Text file");
                 // parse txt file
                 readTXTFile(fileNameString, content, dataDict,targetFiles);
-            } else if (String(filename).endsWith(".json")) {
+            } else if (fileNameString.endsWith(".json")) {
                 console.log("JSON file")
                 // parse JSON file 
                 readSettingsFile(fileNameString, content, dataDict);
-            }
+            } 
             });
             console.log("Data dict:", dataDict);
             return dataDict;
         }
-
-        //const targetInfoDevice = ["App version", "Platform", "Device model","OS","System language", "Support ID","Device ID", "SQLite","Timezone"]
-        //const targetInfoPaywall = ["Is free user", "Used notebooks", "Raw library count", "Shared count", "Trash count"];
 
         function getTargetInfo(sectionName){ // using the section, return a list of targetInfo
             if (sectionName === "Device"){
@@ -506,7 +478,7 @@
             }
         }
 
-        function readTXTFile(fileNameString, content, dataDict,targetFiles){
+        function readTXTFile(fileNameString, content, dataDict, targetFiles){
             // get section name
             const sectionName = targetFiles[fileNameString]; // get the section name based on the file name key
             dataDict[sectionName] = {};
@@ -535,10 +507,8 @@
             return dataDict;
         }
 
-
         function readSettingsFile(fileNameString, content, dataDict) {
             const jsonObj = JSON.parse(content);
-
             const targetInfoSettingsJSON = {
                 "Settings": {
                     "goodNotesEmailAddress": "Goodnotes Email Address",
@@ -561,17 +531,13 @@
                         extractAllKeys(value); // recurse
                     } else {
                         let processedValue = (value === null || value === undefined) ? "None" : value;
-                        
-
                         for (const [section, targetInfo] of Object.entries(targetInfoSettingsJSON)) {
                             if (key in targetInfo) {
                                 const label = targetInfo[key];
-
                                 // Ensure the section exists in dataDict
                                 if (!(section in dataDict)) {
                                     dataDict[section] = {};
                                 }
-
                                 dataDict[section][label] = processedValue;
                             }
                         }
@@ -579,6 +545,48 @@
                 }
             }
             extractAllKeys(jsonObj);
+            return dataDict;
+        }
+
+        function getLastBackupTime(content, dataDict) { // last backup time
+            const lines = content.split('\n');
+            let lastBackUpTime = null;
+            for (const line of lines) {
+                if (line.includes("Last backup finished:")) {
+                    const match = line.match(/Last backup finished:\s*(.+)/);
+                    if (match && match[1]) {
+                        lastBackUpTime = match[1].trim(); // Update with each match
+                    }
+                }
+            }
+            if (lastBackUpTime){
+                dataDict["Auto Backup"]["Last Backup"] = lastBackUpTime;
+            } else {
+                console.log("⚠️ No backup time found in log.")
+                dataDict["Auto Backup"]["Last Backup"] = "Never";
+            }
+            return dataDict;
+        }
+
+        function updateLastSyncTime(content, dataDict) {
+            const lines = content.split('\n');
+            let lastSyncTime = null;
+            for (const line of lines) {
+                if (line.includes('Synchronization completed')) {
+                    const match = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2})/);
+                    if (match && match[1]) {
+                        lastSyncTime = match[1];
+                    }
+                }
+            }
+            
+            if (lastSyncTime) {
+                dataDict["Cloud Sync"]["Last sync"] = lastSyncTime;
+            } else {
+                dataDict["Cloud Sync"]["Last sync"] = "Never";
+                console.log("⚠️ No sync time found in log.");
+            }
+            
             return dataDict;
         }
 
