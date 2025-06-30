@@ -147,39 +147,44 @@
             return templates;
         }
 
-        // Generate individual section template
         function generateSectionTemplate(sectionData, templateId, cardClass, sectionName) {
             const fields = Object.keys(sectionData);
-            
+
             let templateHTML = `<template id="${templateId}">
-        <div class="${cardClass}">
-            <hr style="margin: 1em 0; border: none; border-top: 1px solid #ccc;">
+            <div class="${cardClass}">
+                <hr style="margin: 1em 0; border: none; border-top: 1px solid #ccc;">
 
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5em;">
-  <div class="section-header" style="font-size: 1.25em; font-weight: bold;">
-    ${sectionName}
-  </div>
-  <button class="copy-btn" onclick="copyAllSectionInfo(this)" style="background-color: #6c757d;">
-    Copy ${sectionName} Section
-  </button>
-</div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5em;">
+                    <div class="section-header" 
+                        style="font-size: 1.25em; font-weight: bold; cursor: pointer;" 
+                        onclick="toggleSection(this)">
+                        ${sectionName}
+                    </div>
+                    <button class="copy-btn" onclick="copyAllSectionInfo(this)" style="background-color: #6c757d;">
+                        Copy ${sectionName} Section
+                    </button>
+                </div>
 
-`;
-            
+                <div class="section-content" style="display: none;">
+        `;
+
             // Generate field HTML for each key in the section data
             fields.forEach(fieldKey => {
                 templateHTML += `            <div class="field">
-                <div class="field-content">
-                    <span class="label">${fieldKey}:</span>
-                    <span class="value" data-field="${fieldKey}">-</span>
+                    <div class="field-content">
+                        <span class="label">${fieldKey}:</span>
+                        <span class="value" data-field="${fieldKey}">-</span>
+                    </div>
+                    <button class="copy-btn" onclick="copyToClipboard(this, '${fieldKey}')">Copy</button>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard(this, '${fieldKey}')">Copy</button>
-            </div>
 
-`;
+        `;
             });
-            
-            
+
+            templateHTML += `        </div> <!-- End of section-content -->
+            </div>
+        </template>`;
+
             return {
                 html: templateHTML,
                 templateId: templateId,
@@ -187,6 +192,7 @@
                 sectionName: sectionName
             };
         }
+
 
         // render all the templates based on the nested Data
         function renderTemplatesToDOM(templates, containerId, sampleData) {
@@ -233,6 +239,18 @@
             const templatesDict = generateNestedHTMLTemplates(sampleDeviceData);
             renderTemplatesToDOM(templatesDict, 'template-container', sampleDeviceData); 
         }
+
+        // Allows you to toggle the section name
+        function toggleSection(headerElement) { 
+            const card = headerElement.closest('.' + headerElement.parentElement.parentElement.classList[0]);
+            const content = card.querySelector('.section-content');
+            if (content.style.display === 'none') { // if toggle is closed, open it on click
+                content.style.display = '';
+            } else {
+                content.style.display = 'none'; // if toggle open, close it on click
+            }
+        }
+
 
         /////////////////////////////////////////////////////////////////////////////////
 
