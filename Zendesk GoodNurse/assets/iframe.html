@@ -462,53 +462,48 @@
             "settings.json": "Settings",
             "paywall_diagnostics.txt": "Library",
             "writing_aids_info.txt": "Writing Aids",
-            "logs.txt": "Logs"
+            "logs-isi.txt": "Logs ISI",
+            "logs.txt": "Logs",
+            
         }
 
         async function parseDiagnosticData(data, targetFiles, client) {
             const dataDict = {}; // Initialize empty dict
-
             try {
                 const response = await client.get('ticket.comments');
                 const comments = response['ticket.comments'];
-
                 for (const comment of comments) {
                     if (comment.author?.alias) {
                         continue; // Skip GoodNotes support comments
                     }
-
                     const authorEmail = comment.author.email || "Unknown";
                     const authorName = comment.author.name || "Unknown";
-                    dataDict["User Account"] = {"Name": authorName, "Email": authorEmail}
-
-    
+                    dataDict["User Account"] = {"Name": authorName, "Email": authorEmail}    
                 }
             } catch (error) {
                 console.error("Error fetching ticket comments:", error);
             }
-
             // Now process the diagnostic data files
             Object.entries(data).forEach(([filename, content]) => {
                 const fileNameString = String(filename);
                 console.log("Filename:", fileNameString, typeof fileNameString);
 
-                if (fileNameString.includes("logs.txt")) {
+                if (fileNameString.includes("logs")) { // for logs.txt
                     console.log("Getting logs");
                     getLastBackupTime(content, dataDict);
                     updateLastSyncTime(content, dataDict);
-                } else if (fileNameString.endsWith(".txt")) {
+                    getGNID(content,dataDict);
+                } else if (fileNameString.endsWith(".txt")) { // for other .txt files
                     console.log("Text file");
                     readTXTFile(fileNameString, content, dataDict, targetFiles);
-                } else if (fileNameString.endsWith(".json")) {
+                } else if (fileNameString.endsWith(".json")) { // for settings.json
                     console.log("JSON file");
                     readSettingsFile(fileNameString, content, dataDict);
                 }
             });
-
             console.log("Data dict:", dataDict);
             return dataDict;
         }
-
 
         function getTargetInfo(sectionName){ // using the section, return a list of targetInfo
             if (sectionName === "Device"){
@@ -546,7 +541,12 @@
                     console.warn(`⚠️ Setting invalid value for key "${key}" to "None"`);
                 }
                 // Populate the dictionary directly with the original key and value
-                dataDict[sectionName][key] = value;
+                if (key === "Support ID"){
+                    dataDict["User Account"][key] = value;
+                } else {
+                    dataDict[sectionName][key] = value;
+                }
+                
             }
             return dataDict;
         }
@@ -582,7 +582,11 @@
                                 if (!(section in dataDict)) {
                                     dataDict[section] = {};
                                 }
+                                if (label === "Goodnotes Email Address") {
+                                    dataDict["User Account"][label] = processedValue;
+                                } else {
                                 dataDict[section][label] = processedValue;
+                                }
                             }
                         }
                     }
@@ -623,17 +627,36 @@
                     }
                 }
             }
-            
             if (lastSyncTime) {
                 dataDict["Cloud Sync"]["Last sync"] = lastSyncTime;
             } else {
                 dataDict["Cloud Sync"]["Last sync"] = "Never";
                 console.log("⚠️ No sync time found in log.");
             }
-            
             return dataDict;
         }
-
+        
+        function getGNID(content,dataDict){
+            const lines = content.split('\n');
+            let GNID = null; // Goodnotes ID (for linking to ISI)
+            for (const line of lines) {
+                if (line.includes('userId')|| line.includes('ISI')) {
+                    //const match = line.match(/^(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2})/);
+                    const match = line.match(/\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i);
+                        //GNID = match[1];
+                        if (match && match[1]) {
+                            const GNID = match[1];
+                            console.log("GNID:", GNID)
+                            // use value
+                            dataDict["User Account"]["Goodnotes ID"] = GNID || "Unkown";
+                        }
+                    }
+                }
+            
+            
+                            
+            return dataDict;
+        }
     </script>
 
 
