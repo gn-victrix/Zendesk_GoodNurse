@@ -371,26 +371,32 @@
         client.on('app.registered', function () {
         console.log('App registered!');
         document.getElementById('loadZip').addEventListener('click', function () {
-            getDiagnosticDataURLs(client).then(urls => {
+        getDiagnosticDataURLs(client)
+        .then(urls => {
             console.log('attachment URLs found:', urls);
             if (urls.length > 0) {
-                downloadAndReadDiagnosticData(urls[0]).then(result => {
-                const finalData =  parseDiagnosticData(result,targetFiles); // get dataDict
-                const templatesDict = generateNestedHTMLTemplates(finalData); // create template
-                renderTemplatesToDOM(templatesDict, 'template-container', finalData) // display info
-                });
+                return downloadAndReadDiagnosticData(urls[0]);
+            } else {
+                return Promise.reject('No URLs found');
             }
-            }).catch(err => console.error('Error parsing comments:', err));
+        })
+        .then(result => {
+            return parseDiagnosticData(result, targetFiles, client);
+        })
+        .then(finalData => {
+            const templatesDict = generateNestedHTMLTemplates(finalData);
+            renderTemplatesToDOM(templatesDict, 'template-container', finalData);
+        })
+        .catch(err => {
+            console.error('Error parsing comments:', err);
         });
-        });
+    })})
 
         function getDiagnosticDataURLs(client) {
             return client.get('ticket.comments').then(function (data) {
                 const urls = [];
                 console.log(data['ticket.comments'].length,"comments found");
                 for (const comment of data['ticket.comments']) {
-                    console.log(Object.keys(comment));
-                    console.log(Object.values(comment));
                     const attachments = comment['nonImageAttachments'] || [];
                     for (const attachment of attachments) {
                         console.log('Found attachment:', attachment.filename, attachment.contentType);
@@ -459,30 +465,50 @@
             "logs.txt": "Logs"
         }
 
-        function parseDiagnosticData(data, targetFiles) {
-            const dataDict = {} // intialise empty dict
+        async function parseDiagnosticData(data, targetFiles, client) {
+            const dataDict = {}; // Initialize empty dict
+
+            try {
+                const response = await client.get('ticket.comments');
+                const comments = response['ticket.comments'];
+
+                for (const comment of comments) {
+                    if (comment.author?.alias) {
+                        continue; // Skip GoodNotes support comments
+                    }
+
+                    const authorEmail = comment.author.email || "Unknown";
+                    const authorName = comment.author.name || "Unknown";
+                    dataDict["User Account"] = {"Name": authorName, "Email": authorEmail}
+
+    
+                }
+            } catch (error) {
+                console.error("Error fetching ticket comments:", error);
+            }
+
+            // Now process the diagnostic data files
             Object.entries(data).forEach(([filename, content]) => {
-            const fileNameString = String(filename);
-            console.log("Filename:", fileNameString, typeof(fileNameString));
-            //console.log("Content:", typeof(content));
-            if (fileNameString.includes("logs.txt")){
-                // get last sync and last backup
-                console.log("Getting logs");
-                getLastBackupTime(content, dataDict);
-                updateLastSyncTime(content, dataDict);
-            } else if (fileNameString.endsWith(".txt")) {
-                console.log("Text file");
-                // parse txt file
-                readTXTFile(fileNameString, content, dataDict,targetFiles);
-            } else if (fileNameString.endsWith(".json")) {
-                console.log("JSON file")
-                // parse JSON file 
-                readSettingsFile(fileNameString, content, dataDict);
-            } 
+                const fileNameString = String(filename);
+                console.log("Filename:", fileNameString, typeof fileNameString);
+
+                if (fileNameString.includes("logs.txt")) {
+                    console.log("Getting logs");
+                    getLastBackupTime(content, dataDict);
+                    updateLastSyncTime(content, dataDict);
+                } else if (fileNameString.endsWith(".txt")) {
+                    console.log("Text file");
+                    readTXTFile(fileNameString, content, dataDict, targetFiles);
+                } else if (fileNameString.endsWith(".json")) {
+                    console.log("JSON file");
+                    readSettingsFile(fileNameString, content, dataDict);
+                }
             });
+
             console.log("Data dict:", dataDict);
             return dataDict;
         }
+
 
         function getTargetInfo(sectionName){ // using the section, return a list of targetInfo
             if (sectionName === "Device"){
