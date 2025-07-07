@@ -20,6 +20,7 @@
             max-width: 800px;
             margin: 50px auto;
             padding: 20px;
+            line-height: 1.2; /* Reduced from default 1.5 */
         }
         .section-card {
             border: 1px solid #ddd;
@@ -27,17 +28,21 @@
             padding: 20px;
             margin: 20px 0;
             background-color: #f9f9f9;
+            line-height: 1.2; /* Reduced line spacing */
         }
         .field {
-            margin: 10px 0;
+            margin: 5px 0; /* Reduced from 10px */
+            line-height: 1.1; /* Tight line spacing */
         }
         .label {
             font-weight: bold;
             color: #333;
+            line-height: 1.1; /* Tight line spacing */
         }
         .value {
             color: #666;
             margin-left: 10px;
+            line-height: 1.1; /* Tight line spacing */
         }
         button {
             background-color: #007bff;
@@ -46,7 +51,17 @@
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
-            margin: 10px 5px;
+            margin: 5px 5px; /* Reduced from 10px */
+            line-height: 1.2; /* Reduced line spacing */
+        }
+        .small-button {
+            background-color: #0d6efd;
+            color: white;
+            font-size: 0.75em;
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            margin-left: 1em;
         }
         button:hover {
             background-color: #0056b3;
@@ -56,6 +71,7 @@
             padding: 5px 10px;
             font-size: 12px;
             margin-left: 10px;
+            line-height: 1.1; /* Tight line spacing */
         }
         .copy-btn:hover {
             background-color: #218838;
@@ -66,10 +82,12 @@
         .field {
             display: flex;
             align-items: center;
-            margin: 10px 0;
+            margin: 5px 0; /* Reduced from 10px */
+            line-height: 1.1; /* Tight line spacing */
         }
         .field-content {
             flex: 1;
+            line-height: 1.1; /* Tight line spacing */
         }
     </style>
 </head>
@@ -78,9 +96,6 @@
     
     <!-- Template container -->
     <div id="template-container"></div>
-    
-    <!-- Add load sample data button -->
-    <!-- <button onclick="loadSampleData()">Load Sample Data</button> -->
 
     <!-- Add Load ZIP button-->
     <button id="loadZip">Load Diagnostic Data</button>
@@ -94,62 +109,23 @@
     </script>
 
     <script>
-        // Sample data - dictionary/object format
-
-        const sampleDeviceData = { 
-            "Device Info": { // creating sample data
-                "App version": "6.5.17 (2968577.315336479)",
-                "Platform": "iOS 18.1.1",
-                "Device model": "iPhone 12",
-                "OS": "Version 18.1.1 (Build 22B91)",
-                "System language": "en",
-                "Support ID": "HL8BHT574Y",
-                "Device ID": "C47CB2BE-B37B-4D56-AD0E-614D4E8C1A2E",
-                "SQLite": "3.43.2",
-                "Timezone": "Central Standard Time (CST)"
-            },
-            "Auto Backup": {
-                "Enabled": "No",
-                "Last backup": "Never",
-                "WiFi only": "Yes",
-                "Destination folder": "GoodNotes",
-                "Storage": "Local",
-                "Formats": "PDF"
-            },
-            "Settings": {
-                "iCloud enabled": "Yes",
-                "Search indexing enabled": "Yes",
-                "GoodNotes email address": "me.3rj8h74@goodnotes.email"
-            },
-            "Library": {
-                "Documents count": "58",
-            },
-            "Sync": {
-                "Last synced": "2024/12/10 16:37:42:315"
-            }
-        };
-
         //////////////////////////////////////////////////////////////////////////////////////
 
         // Main function to generate templates for nested data
         function generateNestedHTMLTemplates(nestedData) {
             const templates = {};
             const sections = Object.keys(nestedData);
-            
             sections.forEach(sectionName => {
                 const sectionData = nestedData[sectionName];
                 const templateId = sectionName.toLowerCase().replace(/\s+/g, '-') + '-template';
                 const sectionClass = sectionName.toLowerCase().replace(/\s+/g, '-') + '-card';
-                
                 templates[sectionName] = generateSectionTemplate(sectionData, templateId, sectionClass, sectionName);
             });
-            
             return templates;
         }
 
         function generateSectionTemplate(sectionData, templateId, cardClass, sectionName) {
             const fields = Object.keys(sectionData);
-
             let templateHTML = `<template id="${templateId}">
             <div class="${cardClass}">
                 <hr style="margin: 1em 0; border: none; border-top: 1px solid #ccc;">
@@ -164,9 +140,20 @@
                         Copy ${sectionName} Section
                     </button>
                 </div>
-
+                
                 <div class="section-content">
         `;
+            // Add see Subscription Data button to App section
+            if (sectionName === "App") {
+                templateHTML += `
+                    <button class="open-url-btn small-button" 
+                        data-gnid-placeholder 
+                        style="background-color: #0d6efd; color: white; margin-left: 0em;"
+                        onclick="seeSubscriptionData(this)">
+                        See Subscription Data
+                    </button>
+                `;
+            }
 
             // Generate field HTML for each key in the section data
             fields.forEach(fieldKey => {
@@ -175,16 +162,13 @@
                         <span class="label">${fieldKey}:</span>
                         <span class="value" data-field="${fieldKey}">-</span>
                     </div>
-                    <button class="copy-btn" onclick="copyToClipboard(this, '${fieldKey}')">Copy</button>
                 </div>
-
         `;
-            });
+            }); // <button class="copy-btn" onclick="copyToClipboard(this, '${fieldKey}')">Copy</button>
 
             templateHTML += `        </div> <!-- End of section-content -->
             </div>
         </template>`;
-
             return {
                 html: templateHTML,
                 templateId: templateId,
@@ -202,43 +186,40 @@
                 return;
             }
             container.innerHTML = ''; // Clear existing content
-
             Object.values(templates).forEach(templateData => {
                 // Inject the <template> HTML into the document (if not already present)
                 const tempWrapper = document.createElement('div');
                 tempWrapper.innerHTML = templateData.html.trim();
                 const templateElement = tempWrapper.firstElementChild;
-
                 // Append the <template> to the body or a central location
                 document.body.appendChild(templateElement);
-
                 // Use the template to clone its contents and insert it into the container
                 const content = templateElement.content.cloneNode(true);
-                
                 // Fill in the template with dictionary values BEFORE appending to container
                 // gets the correct dictionary to clone values from e.g. Device Info
                 const sectionName = templateData.sectionName;
                 const currentSection = sampleData[sectionName];
-                
                 if (currentSection) {
-                    Object.keys(currentSection).forEach(key => { // e.g. App version
+                    Object.keys(currentSection).forEach(key => { // e.g. Support ID
                         const element = content.querySelector(`[data-field="${key}"]`); // Use 'content' not 'clone'
                         if (element) {
                             element.textContent = currentSection[key];
                         }
                     });
                 }
-
+                // Send GNID to See Customer Timeline button
+                if (sectionName === "App" && sampleData["User Account"]["Goodnotes ID"]) {
+                    const openButton = content.querySelector('[data-gnid-placeholder]');
+                    if (openButton) {
+                        openButton.setAttribute('data-gnid', sampleData["User Account"]["Goodnotes ID"]);
+                    }
+                }
                 // Now append the populated content to the container
                 container.appendChild(content);
             });
         }
 
-        // Load sample data
-        function loadSampleData() {
-            const templatesDict = generateNestedHTMLTemplates(sampleDeviceData);
-            renderTemplatesToDOM(templatesDict, 'template-container', sampleDeviceData); 
-        }
+        
 
         // Allows you to toggle the section name
         function toggleSection(headerElement) { 
@@ -254,25 +235,35 @@
 
         /////////////////////////////////////////////////////////////////////////////////
 
+        // Open Customer Timeline
+        function seeSubscriptionData(buttonElement) {
+            const gnid = buttonElement.getAttribute('data-gnid');
+            if (!gnid || gnid === "None") {
+                alert("❌ GNID not found.");
+                return;
+            }
+            const url = `https://isi.csan.goodnotes.com/admin/customer-timeline/${gnid}`;
+            window.open(url, '_blank');
+        }
+
+
+
+
         // Copy to clipboard function
         async function copyToClipboard(button, fieldName) {
             try {
                 const deviceCard = button.closest('[class$="-card"]');
                 const valueElement = deviceCard.querySelector(`[data-field="${fieldName}"]`);
                 const textToCopy = valueElement.textContent;
-                
                 await navigator.clipboard.writeText(textToCopy);
-                
-                // Visual feedback
+                // Visual Feedback
                 const originalText = button.textContent;
                 button.textContent = 'Copied!';
                 button.classList.add('copied');
-                
                 setTimeout(() => {
                     button.textContent = originalText;
                     button.classList.remove('copied');
                 }, 2000);
-                
             } catch (err) {
                 console.error('Failed to copy text: ', err);
                 // Fallback for older browsers
@@ -283,22 +274,17 @@
         // Generic copy all information function
         async function copyAllSectionInfo(button) {
             let allInfo = ''; // Declare outside try block for proper scope
-            
             try {
                 // Find the card container - look for any element with class ending in "-card"
                 const sectionCard = button.closest('[class$="-card"]');
-                
                 if (!sectionCard) {
                     console.error('Could not find section card container');
                     return;
                 }
-                
                 // Get the section name from the header
                 const sectionHeader = sectionCard.querySelector('.section-header');
                 const sectionName = sectionHeader ? sectionHeader.textContent : 'Section';
-                
                 const fields = sectionCard.querySelectorAll('[data-field]');
-                
                 allInfo = `${sectionName} Information:\n`;
                 fields.forEach(field => {
                     const fieldName = field.getAttribute('data-field');
@@ -307,19 +293,15 @@
                     const label = fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                     allInfo += `${label}: ${fieldValue}\n`;
                 });
-                
                 await navigator.clipboard.writeText(allInfo);
-                
                 // Visual feedback
                 const originalText = button.textContent;
                 button.textContent = 'All Copied!';
                 button.classList.add('copied');
-                
                 setTimeout(() => {
                     button.textContent = originalText;
                     button.classList.remove('copied');
                 }, 2000);
-                
             } catch (err) {
                 console.error('Failed to copy all text: ', err);
                 // Now allInfo is accessible here
@@ -328,43 +310,8 @@
                 }
             }
         }
+       
 
-        // Fallback function for older browsers
-        function fallbackCopyTextToClipboard(text, button) {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            
-            // Avoid scrolling to bottom
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.position = "fixed";
-            
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    const originalText = button.textContent;
-                    button.textContent = 'Copied!';
-                    button.classList.add('copied');
-                    
-                    setTimeout(() => {
-                        button.textContent = originalText;
-                        button.classList.remove('copied');
-                    }, 2000);
-                }
-            } catch (err) {
-                console.error('Fallback: Oops, unable to copy', err);
-            }
-            document.body.removeChild(textArea);
-        }
-
-        // Load sample data on page load automatically
-        //window.onload = function() {
-        //    loadSampleData(); 
-        //};
     </script>
 <!-------------------------------------------------------------------------------------------------------->
     <script>
@@ -458,13 +405,12 @@
         }
         
         const targetFiles = { // change to a dict so I can map display names to file names
+            "logs-isi.txt": "Logs ISI",
+            "logs.txt": "Logs",
             "device_information.txt": "Device",
             "settings.json": "Settings",
             "paywall_diagnostics.txt": "Library",
-            "writing_aids_info.txt": "Writing Aids",
-            "logs-isi.txt": "Logs ISI",
-            "logs.txt": "Logs",
-            
+            //"writing_aids_info.txt": "Writing Aids",
         }
 
         async function parseDiagnosticData(data, targetFiles, client) {
@@ -478,29 +424,34 @@
                     }
                     const authorEmail = comment.author.email || "Unknown";
                     const authorName = comment.author.name || "Unknown";
-                    dataDict["User Account"] = {"Name": authorName, "Email": authorEmail}    
+                    dataDict["User Account"] = {"Email": authorEmail}    
                 }
             } catch (error) {
                 console.error("Error fetching ticket comments:", error);
             }
+            dataDict["App"] = {};
+            dataDict["Auto Backup"] = {};
+            dataDict["Cloud Sync"] ={};
+         
             // Now process the diagnostic data files
             Object.entries(data).forEach(([filename, content]) => {
                 const fileNameString = String(filename);
                 console.log("Filename:", fileNameString, typeof fileNameString);
 
-                if (fileNameString.includes("logs")) { // for logs.txt
+                if (fileNameString.endsWith(".json")) { // for settings.json
+                    console.log("JSON file");
+                    readSettingsFile(fileNameString, content, dataDict);
+                }else if (fileNameString.includes("logs")) { // for logs.txt
                     console.log("Getting logs");
                     getLastBackupTime(content, dataDict);
                     updateLastSyncTime(content, dataDict);
+                    accountUsesGNC(content, dataDict);
                     getGNID(content,dataDict);
                 } else if (fileNameString.endsWith(".txt")) { // for other .txt files
                     console.log("Text file");
                     readTXTFile(fileNameString, content, dataDict, targetFiles);
-                } else if (fileNameString.endsWith(".json")) { // for settings.json
-                    console.log("JSON file");
-                    readSettingsFile(fileNameString, content, dataDict);
-                }
-            });
+                } 
+        });
             console.log("Data dict:", dataDict);
             return dataDict;
         }
@@ -521,6 +472,7 @@
             // get section name
             const sectionName = targetFiles[fileNameString]; // get the section name based on the file name key
             dataDict[sectionName] = {};
+            
             const targetInfo = getTargetInfo(sectionName);
 
             const lines = content.split('\n');
@@ -543,6 +495,8 @@
                 // Populate the dictionary directly with the original key and value
                 if (key === "Support ID"){
                     dataDict["User Account"][key] = value;
+                } else if (key === "App version"){
+                    dataDict["App"][key] = value;
                 } else {
                     dataDict[sectionName][key] = value;
                 }
@@ -554,10 +508,10 @@
         function readSettingsFile(fileNameString, content, dataDict) {
             const jsonObj = JSON.parse(content);
             const targetInfoSettingsJSON = {
-                "Settings": {
-                    "goodNotesEmailAddress": "Goodnotes Email Address",
-                    "searchIndexing": "Search indexing enabled"
-                },
+                //"Settings": {
+                //    "goodNotesEmailAddress": "Goodnotes Email Address",
+                //    "searchIndexing": "Search indexing enabled"
+                //},
                 "Cloud Sync": {
                     "iCloudEnabled": "iCloud enabled"
                 },
@@ -633,6 +587,49 @@
                 dataDict["Cloud Sync"]["Last sync"] = "Never";
                 console.log("⚠️ No sync time found in log.");
             }
+            return dataDict;
+        }
+
+        function accountUsesGNC(content, dataDict) {
+            try {
+                // Initialize the structure if it doesn't exist
+                //if (!dataDict["Cloud Sync"]) {
+                //    dataDict["Cloud Sync"] = {};
+                //}
+                
+                // Find all occurrences of accountUseGnCloud
+                const regex = /accountUseGnCloud:\s*(true|false)/gi;
+                const matches = [];
+                let match;
+                
+                while ((match = regex.exec(content)) !== null) {
+                    matches.push({
+                        value: match[1],//.toLowerCase(),
+                        position: match.index
+                    });
+                }
+                
+                if (matches.length > 0) {
+                    // Get the last occurrence (highest position)
+                    const lastMatch = matches[matches.length - 1];
+                    const value = lastMatch.value;
+                    
+                    dataDict["Cloud Sync"]["GN Cloud enabled"] = value;
+                    
+                    console.log(`📋 Found ${matches.length} GN Cloud setting(s). Last value: ${value}`);
+                } else {
+                    dataDict["Cloud Sync"]["GN Cloud enabled"] = "unknown";
+                    console.log("⚠️ No GN Cloud setting found in the content.");
+                }
+                
+            } catch (error) {
+                console.error("❌ Error processing GN Cloud setting:", error);
+                if (!dataDict["Cloud Sync"]) {
+                    dataDict["Cloud Sync"] = {};
+                }
+                dataDict["Cloud Sync"]["GN Cloud enabled"] = "error";
+            }
+            
             return dataDict;
         }
         
