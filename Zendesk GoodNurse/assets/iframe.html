@@ -144,16 +144,16 @@
                 <div class="section-content">
         `;
             // Add see Subscription Data button to App section
-            if (sectionName === "App") {
-                templateHTML += `
-                    <button class="open-url-btn small-button" 
-                        data-gnid-placeholder 
-                        style="background-color: #0d6efd; color: white; margin-left: 0em;"
-                        onclick="seeSubscriptionData(this)">
-                        See Subscription Data
-                    </button>
-                `;
-            }
+            //if (sectionName === "App") {
+            //    templateHTML += `
+            //        <button class="open-url-btn small-button" 
+            //            data-gnid-placeholder 
+            //            style="background-color: #0d6efd; color: white; margin-left: 0em;"
+            //            onclick="seeSubscriptionData(this)">
+            //            See Subscription Data
+            //        </button>
+            //    `;
+            //}
 
             // Generate field HTML for each key in the section data
             fields.forEach(fieldKey => {
@@ -208,12 +208,13 @@
                     });
                 }
                 // Send GNID to See Customer Timeline button
-                if (sectionName === "App" && sampleData["User Account"]["Goodnotes ID"]) {
-                    const openButton = content.querySelector('[data-gnid-placeholder]');
-                    if (openButton) {
-                        openButton.setAttribute('data-gnid', sampleData["User Account"]["Goodnotes ID"]);
-                    }
-                }
+                //if (sectionName === "App" && sampleData["User Account"]["Goodnotes ID"]) {
+                //    const openButton = content.querySelector('[data-gnid-placeholder]');
+                //    if (openButton) {
+                //        openButton.setAttribute('data-gnid', sampleData["User Account"]["Goodnotes ID"]);
+                //   }
+                //}
+
                 // Now append the populated content to the container
                 container.appendChild(content);
             });
@@ -266,8 +267,6 @@
                 }, 2000);
             } catch (err) {
                 console.error('Failed to copy text: ', err);
-                // Fallback for older browsers
-                fallbackCopyTextToClipboard(valueElement.textContent, button);
             }
         }
 
@@ -304,10 +303,6 @@
                 }, 2000);
             } catch (err) {
                 console.error('Failed to copy all text: ', err);
-                // Now allInfo is accessible here
-                if (typeof fallbackCopyTextToClipboard === 'function' && allInfo) {
-                    fallbackCopyTextToClipboard(allInfo, button);
-                }
             }
         }
        
@@ -333,11 +328,12 @@
         .then(finalData => {
             const templatesDict = generateNestedHTMLTemplates(finalData);
             renderTemplatesToDOM(templatesDict, 'template-container', finalData);
+            
         })
         .catch(err => {
             console.error('Error parsing comments:', err);
         });
-    })})
+        })})
 
         function getDiagnosticDataURLs(client) {
             return client.get('ticket.comments').then(function (data) {
@@ -398,7 +394,6 @@
             // Get dict of contents of .txt and .json files
             return getZipData(blob).then(result => {
                 console.log("Desired Zip data:", result);
-                //return { blob, result };
                 return result;
             });
             });
@@ -411,6 +406,7 @@
             "settings.json": "Settings",
             "paywall_diagnostics.txt": "Library",
             //"writing_aids_info.txt": "Writing Aids",
+            "app_store_receipt": "Subscriptions"
         }
 
         async function parseDiagnosticData(data, targetFiles, client) {
@@ -432,6 +428,7 @@
             dataDict["App"] = {};
             dataDict["Auto Backup"] = {};
             dataDict["Cloud Sync"] ={};
+            
          
             // Now process the diagnostic data files
             Object.entries(data).forEach(([filename, content]) => {
@@ -450,11 +447,115 @@
                 } else if (fileNameString.endsWith(".txt")) { // for other .txt files
                     console.log("Text file");
                     readTXTFile(fileNameString, content, dataDict, targetFiles);
-                } 
-        });
+                } else if (fileNameString.includes("app_store_receipt")){
+                    console.log("App store receipt", content)
+                    readAppStoreReceipt(fileNameString, content, dataDict);
+                }
+            }); 
+
+            client.metadata().then(meta => { // get other gnids from isi api
+                //const apiKey = meta.settings.api_key;
+                //const identifier = dataDict["User Account"]["Goodnotes ID"]; // get gnid
+                //const identifier = "tony@goodnotesapp.com"
+                //const identifier = "xing@goodnotesapp.com";
+                const identifier = "06d09514-804a-4533-a931-04065c3d3db2"
+                console.log("Identifier", identifier);
+                //fetchCustomerData(client,identifier);//, apiKey);
+            });
             console.log("Data dict:", dataDict);
             return dataDict;
         }
+
+        function fetchCustomerData2(identifier, apiKey) {
+            //const url = `https://isi.csan.goodnotesbeta.com/nest/api/dataConsolidation/zendesk/byAnyIdentifier/${identifier}`;
+            
+            fetch(url, {
+                headers: {
+                'Authorization': `users api-key ${apiKey}`
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log('✅ API response:', data);
+                // TODO: display on my iframe
+            })
+            .catch(err => console.error("❌ Fetch error:", err));
+        }
+
+        function fetchCustomerData3(identifier){ //, apiKey){ // get isi data gnid
+            try {const options = {
+                //url: `https://isi.csan.goodnotesbeta.com/nest/api/dataConsolidation/zendesk/byAnyIdentifier/${identifier}`,
+                url: `https://isi.csan.goodnotesbeta.com/nest/api/dataConsolidation/zendesk/byAnyIdentifier/06d09514-804a-4533-a931-04065c3d3db2`,
+                method: "GET", //type: "GET",
+                headers: {
+                    Authorization: `Basic ${client._metadata.apiToken}`, //"Basic {{setting.apiToken}}",
+                },
+                accepts: "application/json",
+                secure: true,
+            };
+
+            client.request(options)
+            .then((response) => {
+                console.log("✅ API response:", response);
+            })
+            .catch((error) => {
+                console.error("❌ Request failed:", error);
+            });
+
+            } catch (error) {
+                console.error("Error accessing API:", error);
+            }
+        }
+
+        function fetchCustomerData(client,identifier) {
+            if (!identifier || typeof identifier !== "string") {
+                console.error("❌ Invalid identifier:", identifier);
+                return;
+            }
+
+            const encodedIdentifier = encodeURIComponent(identifier); 
+            console.log("📦 Identifier (encoded):", encodedIdentifier);
+
+            client.metadata().then((metadata) => {
+                const apiToken = metadata.settings.apiToken;
+                const authHeader = `users api-key ${apiToken}`;
+
+                //const url = `https://isi.csan.goodnotesbeta.com/nest/api/dataConsolidation/zendesk/byAnyIdentifier/${encodedIdentifier}`;
+                const url = `https://isi.csan.goodnotesbeta.com/nest/api/dataConsolidation/zendesk/byAnyIdentifier/06d09514-804a-4533-a931-04065c3d3db2`;
+
+                const options = {
+                url,
+                method: "GET",
+                headers: {
+                    Authorization: authHeader,
+                    Accept: "application/json",
+                    //"x-app-version": "6.5.0",
+                    //"x-app-type": "web",
+                    //"x-app-name": "goodnotes",
+                    //"x-product-type": "goodnotes_for_ios"
+                },
+                secure: true,
+                };
+
+                console.log("🔍 Sending request to:", url);
+                console.log("🔐 Headers:", options.headers);
+
+                client.request(options)
+                .then((response) => {
+                    console.log("✅ API response:", response);
+                })
+                .catch((error) => {
+                    console.error("❌ API error:", error);
+                    if (error.responseJSON) {
+                    console.error("📩 Error detail:", JSON.stringify(error.responseJSON, null, 2));
+                    } else {
+                    console.error("📩 Raw responseText:", error.responseText);
+                    }
+                });
+            });
+        }
+
+        
 
         function getTargetInfo(sectionName){ // using the section, return a list of targetInfo
             if (sectionName === "Device"){
@@ -618,7 +719,7 @@
                     
                     console.log(`📋 Found ${matches.length} GN Cloud setting(s). Last value: ${value}`);
                 } else {
-                    dataDict["Cloud Sync"]["GN Cloud enabled"] = "unknown";
+                    dataDict["Cloud Sync"]["GN Cloud enabled"] = "Unknown";
                     console.log("⚠️ No GN Cloud setting found in the content.");
                 }
                 
@@ -648,11 +749,91 @@
                             dataDict["User Account"]["Goodnotes ID"] = GNID || "Unkown";
                         }
                     }
-                }
-            
-            
-                            
+                }   
             return dataDict;
+        }
+
+        function readAppStoreReceipt(fileNameString, content, dataDict){
+
+            const lines = content.split('\n');
+            console.log(lines);
+            const prodIDs = [
+                "com.goodnotes.gn6_one_time_unlock_3999", 
+                "com.goodnotes.premium_1y25off_1y_999",
+                "com.goodnotes.one_time_unlock",
+                "rc_promo_premium_weekly"
+            ];
+
+            const purchases = []; // list purchases made by this customer
+
+            const subscriptions = {}; // track subscriptions
+            subscriptions["Previous GN5 user"] = "No"; // intialise as No
+            subscriptions["Current GN6 user"] = "No";
+            subscriptions["Apple access"] = "No";
+            subscriptions["Crossplatform access"] = "No";
+
+            dataDict["App"]["Membership plan"] = "";
+            dataDict["App"]["Purchases"] = "";
+
+            for (const line of lines){      
+                for (const prodID of prodIDs){
+                    if (line.includes(prodID)){
+                        // Step 1: Find the product ID and nearby data
+                        purchases.push(prodID);
+                        const regex = new RegExp(`.{0,150}${prodID}.{0,150}`, 's');
+                        const match = line.match(regex);
+
+                        if (match) {
+                        const chunk = match[0];
+
+                        // Step 2: Extract date-only strings (yyyy-mm-dd) from timestamps
+                        const dateMatches = [...chunk.matchAll(/\d{4}-\d{2}-\d{2}/g)];
+                        console.log(dateMatches);
+                        if (dateMatches.length >= 2) {
+                            const startDate = dateMatches[0][0];
+                            const expiryDate = dateMatches[dateMatches.length - 1][0];
+
+                            console.log("📅 Start Date:", startDate);
+                            console.log("📅 Expiry Date:", expiryDate);
+                            if (startDate === expiryDate){ // one time purchase/doesn't expire
+                                if (prodID.includes("com.goodnotes.one_time_unlock")){ // gn5
+                                    subscriptions["Previous GN5 user"] = "Yes";
+                                    subscriptions["Apple access"] = "Yes";
+                                } else if (prodID.includes("gn6_one_time_unlock_3999")) { // gn6
+                                    subscriptions["Current GN6 user"] = "Yes";
+                                    subscriptions["Apple access"] = "Yes";
+                                }
+                                dataDict["App"][prodID.replace("com.goodnotes.","")] = `Start: ${startDate}`;
+                            } else { // subscription
+                                if (prodID.includes("premium_1y25off_1y_99")){
+                                    subscriptions["Current GN6 user"] = "Yes";
+                                    subscriptions["Apple access"] = "Yes";
+                                    subscriptions["Crossplatform access"] = "Yes";
+                                } 
+                                dataDict["App"][prodID.replace("com.goodnotes.","")] = `Start: ${startDate} Expiry: ${expiryDate}`;
+                            }
+                        } else {
+                            console.warn("❌ Not enough dates found near the product.");
+                        }
+                        }   
+                    
+                    }
+                }
+            }
+            console.log("Purchases", purchases);
+            
+            if (purchases.length === 0){
+                dataDict["App"]["Membership plan"] = "GN6 Freemium";
+            } else if (purchases.includes("com.goodnotes.gn6_one_time_unlock_3999")){
+                dataDict["App"]["Membership plan"] = "GN6 Apple One-Time Payment";
+            } else if (purchases.includes("com.goodnotes.premium_1y25off_1y_999")){
+                dataDict["App"]["Membership plan"] = "GN6 All Platforms Yearly";
+            } else if (purchases.length === 1 && purchases.includes("com.goodnotes.one_time_unlock")){
+                dataDict["App"]["Membership plan"] = "GN5";
+            } else {
+                dataDict["App"]["Membership plan"] = "Unknown";
+            }
+
         }
     </script>
 

@@ -17,6 +17,14 @@
   "version": "1.0.0",
   "frameworkVersion": "2.0",
   "domainWhitelist": [
-    "cdnjs.cloudflare.com"
+    "cdnjs.cloudflare.com",
+    "isi.csan.goodnotesbeta.com"
+  ],
+  "parameters": [
+    {
+      "name": "apiToken",
+      "type": "password",
+      "secure": true
+    }
   ]
 }
