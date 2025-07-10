@@ -55,7 +55,7 @@
             line-height: 1.2; /* Reduced line spacing */
         }
         .small-button {
-            background-color: #0d6efd;
+            background-color: #007bff;
             color: white;
             font-size: 0.75em;
             padding: 4px 8px;
@@ -89,6 +89,25 @@
             flex: 1;
             line-height: 1.1; /* Tight line spacing */
         }
+        .loader-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px; /* or any height you need */
+        }
+        .loader {
+            border: 10px solid #bebebe; /* Light grey */
+            border-top: 10px solid #007bff; /* Blue */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            
+        }
+        @keyframes spin { /* for loader animation */
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -102,6 +121,10 @@
         <button id="loadZip" style="font-size: 1em; font-weight: bold;">Latest Diagnostic Data</button>
     </div>
     <div id="error-box" style="display:none; color: red; text-align: center; margin-top: 1em;"></div>
+    <div class="loader-container">
+        <div id="loader-animation" class="loader" style="display: none;"></div>
+    </div>
+
    
     <div id="zipContents"></div>
     
@@ -147,17 +170,7 @@
                 
                 <div class="section-content">
         `;
-            // Add see Subscription Data button to App section
-            //if (sectionName === "App") {
-            //    templateHTML += `
-            //        <button class="open-url-btn small-button" 
-            //            data-gnid-placeholder 
-            //            style="background-color: #0d6efd; color: white; margin-left: 0em;"
-            //            onclick="seeSubscriptionData(this)">
-            //            See Subscription Data
-            //        </button>
-            //    `;
-            //}
+            
 
             // Generate field HTML for each key in the section data
             fields.forEach(fieldKey => {
@@ -257,23 +270,6 @@
             }
         }
 
-
-        /////////////////////////////////////////////////////////////////////////////////
-
-        // Open Customer Timeline
-        function seeSubscriptionData(buttonElement) {
-            const gnid = buttonElement.getAttribute('data-gnid');
-            if (!gnid || gnid === "None") {
-                alert("❌ GNID not found.");
-                return;
-            }
-            const url = `https://isi.csan.goodnotes.com/admin/customer-timeline/${gnid}`;
-            window.open(url, '_blank');
-        }
-
-
-
-
         // Copy to clipboard function
         async function copyToClipboard(button, fieldName) {
             try {
@@ -338,6 +334,11 @@
         client.on('app.registered', function () {
         console.log('App registered!');
         document.getElementById('loadZip').addEventListener('click', function () {
+        // Show loader and hide previous error
+        const loader = document.getElementById('loader-animation');
+        loader.style.display = 'block';
+        
+
         getDiagnosticDataURLs(client)
         .then(urls => {
             console.log('attachment URLs found:', urls);
@@ -349,7 +350,7 @@
         })
         .catch(error => {
             console.error('❌ Error loading zip:', error);
-
+            loader.style.display = 'none'; // hide loader on error
             // Send error message to iframe
             const errorBox = document.getElementById('error-box');
             //if (errorBox) {
@@ -359,6 +360,7 @@
 
         })
         .then(result => {
+            loader.style.display = 'none'; // hide loader once data is loaded
             return parseDiagnosticData(result, targetFiles, client);
         })
         .then(finalData => {
