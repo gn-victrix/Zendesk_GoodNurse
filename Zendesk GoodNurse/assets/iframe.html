@@ -18,8 +18,8 @@
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
+            /*margin: 5px auto;*/
+            /*padding: 20px;*/
             line-height: 1.2; /* Reduced from default 1.5 */
         }
         .section-card {
@@ -98,8 +98,11 @@
     <div id="template-container"></div>
 
     <!-- Add Load ZIP button-->
-    <button id="loadZip">Load Last Diagnostic Data</button>
-    <div id="error-box" style="display:none; color: red;"></div>
+    <div style="text-align: center; margin-top: 1em;">
+        <button id="loadZip" style="font-size: 1em; font-weight: bold;">Latest Diagnostic Data</button>
+    </div>
+    <div id="error-box" style="display:none; color: red; text-align: center; margin-top: 1em;"></div>
+   
     <div id="zipContents"></div>
     
     <script>
@@ -812,39 +815,60 @@
             return dataDict;
         }
 
+        function subscriptionValid(subEnd){
+            const endDate = new Date(subEnd) // turns it into a date obj
+            const today = new Date();
+            endDate.setHours(0, 0, 0, 0); // ignore the time, just the date
+            today.setHours(0, 0, 0, 0);
+            console.log("TODAY", today,"END DATE", endDate);
+            if (endDate > today -1){ // expiry is after today
+                return true;
+            } else{
+                return false;
+            }
+        }
         function readAppStoreReceipt(fileNameString, content, dataDict){
             const lines = content.split('\n');
             //console.log(lines);
             const prodIDs = [
-                "com.goodnotes.gn6_one_time_unlock_3999", 
-                "com.goodnotes.premium_1y25off_1y_999",
+                // GN6 one-time unlock
+                "com.goodnotes.gn6_one_time_unlock_3999",
+                "com.goodnotes.gn6_one_time_unlock_2999",
+                "com.goodnotes.gn6_one_time_unlock_3499",
+                "com.goodnotes.gn6_one_time_unlock_3749",
+                "com.goodnotes.gn6_one_time_unlock",
+                // GN5 one-time unlock
                 "com.goodnotes.one_time_unlock",
-                "rc_promo_premium_weekly"
+                // Apple-XP subscription
+                "com.goodnotes.premium_7dt_1y_999",
+                "com.goodnotes.premium_1yf_1y_999",
+                "com.goodnotes.premium_1y25off_1y_999",
+                "com.goodnotes.premium_7dt_1y_999",
+                "com.goodnotes.premium_1y_799",
+                "com.goodnotes.premium_1y_699",
+                // XP-only subscription
+                "com.goodnotes.xp_1y_559",
+                "com.goodnotes.xp_7dt_1y_699",
+                "com.goodnotes.xp_1y_699",
             ];
-
-            const purchases = []; // list purchases made by this customer
-
-            const subscriptions = {}; // track subscriptions
-            subscriptions["Previous GN5 user"] = "No"; // intialise as No
-            subscriptions["Current GN6 user"] = "No";
-            subscriptions["Apple access"] = "No";
-            subscriptions["Crossplatform access"] = "No";
-
+            const oneTimeUnlockGN5 = {}; // GN5 one-time purchase
+            const oneTimeUnlockGN6 = {}; // GN6 one-time purchase
+            const activeSubscriptions = {}; // active subscriptions
+            const expiredSubscriptions = {}; // expired subscriptions
+            // Initialise values
             dataDict["App"]["Membership plan"] = "";
             dataDict["App"]["GN5 User"] = "Never";
-            //dataDict["App"]["Purchases"] = "";
-
-
+        
             for (const line of lines){      
                 for (const prodID of prodIDs){
                     if (line.includes(prodID)){
-                        // Step 1: Find the product ID and nearby data
-                        purchases.push(prodID);
+                        // Find the product ID and nearby data
+                        console.log(prodID);
                         const regex = new RegExp(`.{0,150}${prodID}.{0,150}`, 's');
                         const match = line.match(regex);
                         if (match) {
                         const chunk = match[0];
-                        // Step 2: Extract date-only strings (yyyy-mm-dd) from timestamps
+                        // Extract date-only strings (yyyy-mm-dd) from timestamps
                         const dateMatches = [...chunk.matchAll(/\d{4}-\d{2}-\d{2}/g)];
                         console.log(dateMatches);
                         if (dateMatches.length >= 2) {
@@ -852,22 +876,20 @@
                             const expiryDate = dateMatches[dateMatches.length - 1][0];
                             console.log("📅 Start Date:", startDate);
                             console.log("📅 Expiry Date:", expiryDate);
-                            if (startDate === expiryDate){ // one time purchase/doesn't expire
-                                if (prodID.includes("com.goodnotes.one_time_unlock")){ // gn5
-                                    subscriptions["Previous GN5 user"] = "Yes";
-                                    subscriptions["Apple access"] = "Yes";
-                                } else if (prodID.includes("gn6_one_time_unlock_3999")) { // gn6
-                                    subscriptions["Current GN6 user"] = "Yes";
-                                    subscriptions["Apple access"] = "Yes";
+                            // One time purchase/doesn't expire
+                            if (startDate === expiryDate){ 
+                                if (prodID.includes("com.goodnotes.one_time_unlock")){ // GN5 
+                                    oneTimeUnlockGN5[prodID] = {"Start": startDate};
+                                } else { // should only be gn6 one-time-unlock
+                                    oneTimeUnlockGN6[prodID] = {"Start": startDate};
                                 }
-                                //dataDict["App"][prodID.replace("com.goodnotes.","")] = `Start: ${startDate}`;
-                            } else { // subscription
-                                if (prodID.includes("premium_1y25off_1y_99")){
-                                    subscriptions["Current GN6 user"] = "Yes";
-                                    subscriptions["Apple access"] = "Yes";
-                                    subscriptions["Crossplatform access"] = "Yes";
+                            } else { // Subscription
+                                if (subscriptionValid(expiryDate)){
+                                    activeSubscriptions[prodID] = {"Start": startDate, "End": expiryDate};
+                                    console.log("Active subscriptions", activeSubscriptions);
+                                } else { // prodID+startDate because there are the same 7 day trials added at different times
+                                    expiredSubscriptions[prodID+startDate] = {"Start": startDate, "End": expiryDate};
                                 } 
-                                //dataDict["App"][prodID.replace("com.goodnotes.","")] = `Start: ${startDate} Expiry: ${expiryDate}`;
                             }
                         } else {
                             console.warn("❌ Not enough dates found near the product.");
@@ -876,27 +898,60 @@
                     }
                 }
             }
-            console.log("Purchases", purchases);
+            // Logging 
+            console.log("oneTimeUnlockGN5",oneTimeUnlockGN5);
+            console.log("oneTimeUnlockGN6",oneTimeUnlockGN6);
+            console.log("activeSubscriptions",activeSubscriptions);
+            console.log("expiredSubscriptions",expiredSubscriptions);
             
-            if (purchases.length === 0){
-                dataDict["App"]["Membership plan"] = "GN6 Freemium";
-            } else if (purchases.includes("com.goodnotes.gn6_one_time_unlock_3999")){
-                dataDict["App"]["Membership plan"] = "GN6 Apple One-Time Payment";
-                if (purchases.includes("com.goodnotes.one_time_unlock")){
+            // Membership logic
+            if (Object.keys(oneTimeUnlockGN5).length===0 && Object.keys(oneTimeUnlockGN6).length===0 && Object.keys(activeSubscriptions).length===0){ 
+                // No purchases = Freemium
+                console.log("GN6 Free");
+                dataDict["App"]["Membership plan"] = "GN6 Free"; 
+                dataDict["App"]["GN5 User"] = "Never";
+            } else if (Object.keys(oneTimeUnlockGN5).length===1 && Object.keys(oneTimeUnlockGN6).length===0 && Object.keys(activeSubscriptions).length===0){ 
+                // GN5 one-time unlock
+                console.log("GN5 one-time unlock");
+                dataDict["App"]["Membership plan"] = `GN5 (Since ${oneTimeUnlockGN5[Object.keys(oneTimeUnlockGN5)[0]].Start})`;
+                dataDict["App"]["GN5 User"] = "Currently";
+            } else if (Object.keys(oneTimeUnlockGN6).length>0 && Object.keys(activeSubscriptions).length===0){
+                // GN6 one-time unlock
+                console.log("GN6 one-time unlock");
+                dataDict["App"]["Membership plan"] = `GN6 Apple One-Time Payment (Since ${oneTimeUnlockGN6[Object.keys(oneTimeUnlockGN6)[0]].Start})`;
+                if (Object.keys(oneTimeUnlockGN5).length===1){
                     dataDict["App"]["GN5 User"] = "Previously";
                 }
-            } else if (purchases.includes("com.goodnotes.premium_1y25off_1y_999")){
-                dataDict["App"]["Membership plan"] = "GN6 All Platforms Yearly";
-                if (purchases.includes("com.goodnotes.one_time_unlock")){
-                    dataDict["App"]["GN5 User"] = "Previously";
-                }
-            } else if (purchases.length === 1 && purchases.includes("com.goodnotes.one_time_unlock")){
-                dataDict["App"]["Membership plan"] = "GN5";
-                dataDict["App"]["GN5 User"] = "Currently"
-            } else {
-                dataDict["App"]["Membership plan"] = "Unknown";
-            }
+            } else if (Object.keys(activeSubscriptions).length>0){ // If there active subscriptions
+                // all platforms or xp only
+                if (Object.keys(activeSubscriptions).length>1){
+                    // multiple active subscriptions 
+                    console.log("🚨 Multiple active subscriptions");
+                    dataDict["App"]["Membership plan"] = "🚨 Multiple active subscriptions";
+                } else if (Object.keys(activeSubscriptions)[0].includes("premium")){
+                    // All platforms susbscription
+                    console.log("GN6 All Platforms Yearly - Expires",activeSubscriptions[Object.keys(activeSubscriptions)[0]].End);
+                    dataDict["App"]["Membership plan"] = `GN6 All Platforms Yearly (Expires ${activeSubscriptions[Object.keys(activeSubscriptions)[0]].End})`
+                } else if (activeSubscriptions[Object.keys(activeSubscriptions)[0]].includes("xp")){
+                    console.log("GN6 XP Only Yearly - Expires",activeSubscriptions[Object.keys(activeSubscriptions)[0]].End);
+                    dataDict["App"]["Membership plan"] = `GN6 Android & Windows Yearly (Expires ${activeSubscriptions[Object.keys(activeSubscriptions)[0]].End})`
+                }  
 
+                if (Object.keys(oneTimeUnlockGN5).length===1){
+                    dataDict["App"]["GN5 User"] = "Previously";
+                }
+            } else if (Object.keys(oneTimeUnlockGN6).length===0 && Object.keys(activeSubscriptions).length===0 && Object.keys(expiredSubscriptions).length>0){
+                // Only have expired subscriptions
+                console.log("GN Free");
+                dataDict["App"]["Membership plan"] = "GN6 Free"; 
+                if (Object.keys(oneTimeUnlockGN5).length===0){
+                    dataDict["App"]["GN5 User"] = "Never";
+                } else {
+                    dataDict["App"]["GN5 User"] = "Currently";
+                }
+            } else {
+                dataDict["App"]["Membership plan"] = "Unknown"; 
+            }
         }
     </script>
 
